@@ -3,6 +3,8 @@
 
 package highs
 
+import "math"
+
 // A NonZero represents a nonzero entry in a sparse matrix.  Rows and columns
 // are indexed from zero.
 type NonZero struct {
@@ -23,19 +25,42 @@ type commonModel struct {
 	coeffMatrix []NonZero // Sparse "A" matrix
 }
 
-// Set a model's lower and upper row bounds.
+// prepareBounds replaces nil column or row bounds with infinities.
+func (m *commonModel) prepareBounds(lb, ub []float64) ([]float64, []float64) {
+	switch {
+	case lb == nil && ub == nil:
+		// No bounds were provided.
+	case lb == nil:
+		// Replace nil lower bounds with minus infinity.
+		mInf := math.Inf(-1)
+		lb = make([]float64, len(ub))
+		for i := range lb {
+			lb[i] = mInf
+		}
+	case ub == nil:
+		// Replace nil upper bounds with plus infinity.
+		pInf := math.Inf(1)
+		ub = make([]float64, len(lb))
+		for i := range ub {
+			ub[i] = pInf
+		}
+	case len(lb) != len(ub):
+		panic("different numbers of lower and upper bounds were provided")
+	}
+	return lb, ub
+}
+
+// SetRowBounds sets a model's lower and upper row bounds.
 func (m *commonModel) SetRowBounds(lb, ub []float64) {
-	m.rowLower = lb
-	m.rowUpper = ub
+	m.rowLower, m.rowUpper = m.prepareBounds(lb, ub)
 }
 
-// Set a model's lower and upper column bounds.
+// SetColumnBounds sets a model's lower and upper column bounds.
 func (m *commonModel) SetColumnBounds(lb, ub []float64) {
-	m.colLower = lb
-	m.colUpper = ub
+	m.colLower, m.colUpper = m.prepareBounds(lb, ub)
 }
 
-// Set a model's coefficient matrix.
+// SetCoefficients sets a model's coefficient matrix.
 func (m *commonModel) SetCoefficients(nz []NonZero) {
 	m.coeffMatrix = nz
 }
