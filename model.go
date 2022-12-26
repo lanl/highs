@@ -3,7 +3,14 @@
 
 package highs
 
-import "math"
+import (
+	"fmt"
+	"math"
+	"sort"
+)
+
+// #include <interfaces/highs_c_api.h>
+import "C"
 
 // A NonZero represents a nonzero entry in a sparse matrix.  Rows and columns
 // are indexed from zero.
@@ -13,7 +20,7 @@ type NonZero struct {
 	Value float64
 }
 
-// An commonModel represents fields common to many HiGHS models.
+// A commonModel represents fields common to many HiGHS models.
 type commonModel struct {
 	maximize    bool      // true=maximize; false=minimize
 	colCosts    []float64 // Column costs (objective function)
@@ -66,9 +73,53 @@ func (m *commonModel) SetColumnBounds(lb, ub []float64) {
 	m.colLower, m.colUpper = m.prepareBounds(lb, ub)
 }
 
-// SetCoefficients specifies a model's coefficient matrix.
+// SetCoefficients specifies a model's coefficient matrix in terms of its
+// nonzero entries.
 func (m *commonModel) SetCoefficients(nz []NonZero) {
-	m.coeffMatrix = nz
+	// Complain about negative indices.
+	for _, v := range nz {
+		if v.Row < 0 || v.Col < 0 {
+			panic(fmt.Sprintf("(%d, %d) is not a valid coordinate for a matrix coefficient",
+				v.Row, v.Col))
+		}
+	}
+
+	// Make a copy of the nonzeroes and sort the copy in place.
+	sorted := make([]NonZero, len(nz))
+	copy(sorted, nz)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		nz0 := sorted[i]
+		nz1 := sorted[j]
+		switch {
+		case nz0.Row < nz1.Row:
+			return true
+		case nz0.Row > nz1.Row:
+			return false
+		case nz0.Col < nz1.Col:
+			return true
+		case nz0.Col > nz1.Col:
+			return false
+		default:
+			return false // Equal coordinates
+		}
+	})
+
+	// Elide duplicate entries, keeping the latest value.
+	m.coeffMatrix = make([]NonZero, 0, len(sorted))
+	for _, v := range sorted {
+		i := len(m.coeffMatrix)
+		switch {
+		case i == 0:
+			// First element: always include.
+			m.coeffMatrix = append(m.coeffMatrix, v)
+		case v.Row == m.coeffMatrix[i-1].Row && v.Col == m.coeffMatrix[i-1].Col:
+			// Duplicate coordinate: retain the later value.
+			m.coeffMatrix[i-1].Value = v.Value
+		default:
+			// New coordinate.
+			m.coeffMatrix = append(m.coeffMatrix, v)
+		}
+	}
 }
 
 // SetMaximization tells a model to maximize (true) or minimize (false) its
@@ -86,4 +137,25 @@ func (m *commonModel) SetColumnCosts(cs []float64) {
 // SetOffset specifies a constant offset for the objective function.
 func (m *commonModel) SetOffset(o float64) {
 	m.offset = o
+}
+
+// makeSparseMatrix converts coeffMatrix to a row-wise sparse-matrix
+// representation in the form of a set of C vectors accepted by the HiGHS APIs.
+func (m *commonModel) makeSparseMatrix() (start, index []C.HighsInt, value []C.double) {
+	// Allocate memory for all of our return vectors.
+	start = make([]C.HighsInt, 0, len(m.coeffMatrix))
+	index = make([]C.HighsInt, 0, len(m.coeffMatrix))
+	value = make([]C.double, 0, len(m.coeffMatrix))
+
+	// Construct slices of C types.
+	prevRow := -1
+	for _, nz := range m.coeffMatrix {
+		if nz.Row > prevRow {
+			start = append(start, C.HighsInt(len(value)))
+			index = append(index, C.HighsInt(nz.Col))
+			prevRow = nz.Row
+		}
+		value = append(value, C.double(nz.Value))
+	}
+	return start, index, value
 }
