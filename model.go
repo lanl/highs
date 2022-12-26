@@ -15,8 +15,8 @@ type NonZero struct {
 
 // An commonModel represents fields common to many HiGHS models.
 type commonModel struct {
-	minimize    bool      // true=minimize; false=maximize
-	colCost     []float64 // Column costs (objective function)
+	maximize    bool      // true=maximize; false=minimize
+	colCosts    []float64 // Column costs (objective function)
 	offset      float64   // Objective-function offset
 	colLower    []float64 // Column lower bounds
 	colUpper    []float64 // Column upper bounds
@@ -50,17 +50,40 @@ func (m *commonModel) prepareBounds(lb, ub []float64) ([]float64, []float64) {
 	return lb, ub
 }
 
-// SetRowBounds sets a model's lower and upper row bounds.
+// SetRowBounds specifies a model's lower and upper row bounds.  If the
+// lower-bound argument is nil it is replaced with a slice of negative
+// infinities.  If the upper-bound argument is nil, it is replaced with a slice
+// of positive infinities.
 func (m *commonModel) SetRowBounds(lb, ub []float64) {
 	m.rowLower, m.rowUpper = m.prepareBounds(lb, ub)
 }
 
-// SetColumnBounds sets a model's lower and upper column bounds.
+// SetColumnBounds specifies a model's lower and upper column bounds.  If the
+// lower-bound argument is nil it is replaced with a slice of negative
+// infinities.  If the upper-bound argument is nil, it is replaced with a slice
+// of positive infinities.
 func (m *commonModel) SetColumnBounds(lb, ub []float64) {
 	m.colLower, m.colUpper = m.prepareBounds(lb, ub)
 }
 
-// SetCoefficients sets a model's coefficient matrix.
+// SetCoefficients specifies a model's coefficient matrix.
 func (m *commonModel) SetCoefficients(nz []NonZero) {
 	m.coeffMatrix = nz
+}
+
+// SetMaximization tells a model to maximize (true) or minimize (false) its
+// objective function.
+func (m *commonModel) SetMaximization(max bool) {
+	m.maximize = max
+}
+
+// SetColumnCosts specifies a model's column costs (i.e., its objective
+// function).
+func (m *commonModel) SetColumnCosts(cs []float64) {
+	m.colCosts = cs
+}
+
+// SetOffset specifies a constant offset for the objective function.
+func (m *commonModel) SetOffset(o float64) {
+	m.offset = o
 }
