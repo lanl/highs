@@ -12,9 +12,9 @@ import (
 // #include "highs-externs.h"
 import "C"
 
-// A NonZero represents a nonzero entry in a sparse matrix.  Rows and columns
+// A Nonzero represents a nonzero entry in a sparse matrix.  Rows and columns
 // are indexed from zero.
-type NonZero struct {
+type Nonzero struct {
 	Row   int
 	Col   int
 	Value float64
@@ -122,7 +122,7 @@ type commonModel struct {
 	colUpper    []float64 // Column upper bounds
 	rowLower    []float64 // Row lower bounds
 	rowUpper    []float64 // Row upper bounds
-	coeffMatrix []NonZero // Sparse "A" matrix
+	coeffMatrix []Nonzero // Sparse "A" matrix
 }
 
 // prepareBounds replaces nil column or row bounds with infinities.
@@ -168,7 +168,7 @@ func (m *commonModel) SetColumnBounds(lb, ub []float64) {
 
 // SetCoefficients specifies a model's coefficient matrix in terms of its
 // nonzero entries.
-func (m *commonModel) SetCoefficients(nz []NonZero) {
+func (m *commonModel) SetCoefficients(nz []Nonzero) {
 	// Complain about negative indices.
 	for _, v := range nz {
 		if v.Row < 0 || v.Col < 0 {
@@ -178,7 +178,7 @@ func (m *commonModel) SetCoefficients(nz []NonZero) {
 	}
 
 	// Make a copy of the nonzeroes and sort the copy in place.
-	sorted := make([]NonZero, len(nz))
+	sorted := make([]Nonzero, len(nz))
 	copy(sorted, nz)
 	sort.SliceStable(sorted, func(i, j int) bool {
 		nz0 := sorted[i]
@@ -198,7 +198,7 @@ func (m *commonModel) SetCoefficients(nz []NonZero) {
 	})
 
 	// Elide duplicate entries, keeping the latest value.
-	m.coeffMatrix = make([]NonZero, 0, len(sorted))
+	m.coeffMatrix = make([]Nonzero, 0, len(sorted))
 	for _, v := range sorted {
 		i := len(m.coeffMatrix)
 		switch {
@@ -245,9 +245,9 @@ func (m *commonModel) makeSparseMatrix() (start, index []C.HighsInt, value []C.d
 	for _, nz := range m.coeffMatrix {
 		if nz.Row > prevRow {
 			start = append(start, C.HighsInt(len(value)))
-			index = append(index, C.HighsInt(nz.Col))
 			prevRow = nz.Row
 		}
+		index = append(index, C.HighsInt(nz.Col))
 		value = append(value, C.double(nz.Value))
 	}
 	return start, index, value

@@ -99,7 +99,7 @@ func (m *LPModel) Solve() (LPSolution, error) {
 	for i, cbs := range colBasisStatus {
 		soln.ColumnBasis[i] = convertHighsBasisStatus(cbs)
 	}
-	soln.RowBasis = make([]BasisStatus, nc)
+	soln.RowBasis = make([]BasisStatus, nr)
 	for i, rbs := range rowBasisStatus {
 		soln.RowBasis[i] = convertHighsBasisStatus(rbs)
 	}
