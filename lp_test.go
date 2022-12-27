@@ -82,11 +82,7 @@ func TestMinimalAPI(t *testing.T) {
 	compSlices(t, "RowBasis", soln.RowBasis, []BasisStatus{Basic, Lower, Lower})
 
 	// Validate the objective value.
-	obj := offset
-	for i := range soln.ColumnPrimal {
-		obj += soln.ColumnPrimal[i] * colCosts[i]
-	}
-	if obj != 5.75 {
-		t.Fatalf("objective value was %.2f but should have been 5.75", obj)
+	if soln.Objective != 5.75 {
+		t.Fatalf("objective value was %.2f but should have been 5.75", soln.Objective)
 	}
 }

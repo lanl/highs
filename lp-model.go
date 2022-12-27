@@ -28,6 +28,7 @@ type LPSolution struct {
 	RowDual      []float64     // Dual row solution
 	ColumnBasis  []BasisStatus // Basis status of each column
 	RowBasis     []BasisStatus // Basis status of each row
+	Objective    float64       // Objective value
 }
 
 // Solve solves a linear-programming model.
@@ -102,6 +103,12 @@ func (m *LPModel) Solve() (LPSolution, error) {
 	soln.RowBasis = make([]BasisStatus, nr)
 	for i, rbs := range rowBasisStatus {
 		soln.RowBasis[i] = convertHighsBasisStatus(rbs)
+	}
+
+	// Compute the objective value as a convenience for the user.
+	soln.Objective = m.offset
+	for i, cp := range soln.ColumnPrimal {
+		soln.Objective += cp * m.colCosts[i]
 	}
 	return soln, nil
 }
