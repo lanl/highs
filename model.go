@@ -9,7 +9,7 @@ import (
 	"sort"
 )
 
-// #include <interfaces/highs_c_api.h>
+// #include "highs-externs.h"
 import "C"
 
 // A NonZero represents a nonzero entry in a sparse matrix.  Rows and columns

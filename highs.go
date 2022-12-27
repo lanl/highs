@@ -2,4 +2,5 @@
 package highs
 
 // #cgo pkg-config: highs
+// #include <interfaces/highs_c_api.h>
 import "C"

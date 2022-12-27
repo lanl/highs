@@ -5,7 +5,7 @@ package highs
 
 import "fmt"
 
-// #include <interfaces/highs_c_api.h>
+// #include "highs-externs.h"
 import "C"
 
 // An LPModel represents a HiGHS linear-programming model.
