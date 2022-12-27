@@ -36,7 +36,7 @@ func TestMakeSparseMatrix(t *testing.T) {
 	compSlices(t, "value", value, []float64{1.0, 1.0, 2.0, 3.0, 2.0})
 }
 
-// TestMinimalAPI mimics the first test in HiGHS's minimal_api function from
+// TestMinimalAPIMin mimics the first test in HiGHS's minimal_api function from
 // examples/call_highs_from_c.c:
 //
 //	Min    f  =  x_0 +  x_1 + 3
@@ -44,7 +44,7 @@ func TestMakeSparseMatrix(t *testing.T) {
 //	       5 <=  x_0 + 2x_1 <= 15
 //	       6 <= 3x_0 + 2x_1
 //	0 <= x_0 <= 4; 1 <= x_1
-func TestMinimalAPI(t *testing.T) {
+func TestMinimalAPIMin(t *testing.T) {
 	// Prepare the model.
 	model := NewLPModel()
 	model.SetMaximization(false) // Unnecessary but included for testing
@@ -84,5 +84,56 @@ func TestMinimalAPI(t *testing.T) {
 	// Validate the objective value.
 	if soln.Objective != 5.75 {
 		t.Fatalf("objective value was %.2f but should have been 5.75", soln.Objective)
+	}
+}
+
+// TestMinimalAPIMax mimics the second test in HiGHS's minimal_api function from
+// examples/call_highs_from_c.c:
+//
+//	Max    f  =  x_0 +  x_1 + 3
+//	s.t.                x_1 <= 7
+//	       5 <=  x_0 + 2x_1 <= 15
+//	       6 <= 3x_0 + 2x_1
+//	0 <= x_0 <= 4; 1 <= x_1
+func TestMinimalAPIMax(t *testing.T) {
+	// Prepare the model.
+	model := NewLPModel()
+	model.SetMaximization(true)
+	offset := 3.0
+	model.SetOffset(offset)
+	colCosts := []float64{1.0, 1.0}
+	model.SetColumnCosts(colCosts)
+	model.SetColumnBounds([]float64{0.0, 1.0},
+		[]float64{4.0, 1.0e30})
+	model.SetRowBounds([]float64{-1.0e30, 5.0, 6.0},
+		[]float64{7.0, 15.0, 1.0e30})
+	model.SetCoefficients([]Nonzero{
+		{0, 1, 1.0},
+		{1, 0, 1.0},
+		{1, 1, 2.0},
+		{2, 0, 3.0},
+		{2, 1, 2.0},
+	})
+
+	// Solve the model.
+	soln, err := model.Solve()
+	if err != nil {
+		t.Fatalf("solve failed (%s)", err)
+	}
+	if soln.Status != Optimal {
+		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+	}
+
+	// Confirm that each field is as expected.
+	compSlices(t, "ColumnPrimal", soln.ColumnPrimal, []float64{4.0, 5.5})
+	compSlices(t, "RowPrimal", soln.RowPrimal, []float64{5.5, 15.0, 23.0})
+	compSlices(t, "ColumnDual", soln.ColumnDual, []float64{0.5, 0.0})
+	compSlices(t, "RowDual", soln.RowDual, []float64{0.0, 0.5, 0.0})
+	compSlices(t, "ColumnBasis", soln.ColumnBasis, []BasisStatus{Upper, Basic})
+	compSlices(t, "RowBasis", soln.RowBasis, []BasisStatus{Basic, Upper, Basic})
+
+	// Validate the objective value.
+	if soln.Objective != 12.5 {
+		t.Fatalf("objective value was %.2f but should have been 12.5", soln.Objective)
 	}
 }
