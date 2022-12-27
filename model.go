@@ -20,6 +20,99 @@ type NonZero struct {
 	Value float64
 }
 
+// A BasisStatus represents the basis status of a row or column.
+type BasisStatus int
+
+// These are the values a BasisStatus accepts.
+const (
+	UnknownBasisStatus BasisStatus = iota
+	Lower
+	Basic
+	Upper
+	Zero
+	NonBasic
+)
+
+// convertHighsBasisStatus converts a kHighsBasisStatus value to a BasisStatus
+// value.
+func convertHighsBasisStatus(hbs C.HighsInt) BasisStatus {
+	switch hbs {
+	case C.kHighsBasisStatusLower:
+		return Lower
+	case C.kHighsBasisStatusBasic:
+		return Basic
+	case C.kHighsBasisStatusUpper:
+		return Upper
+	case C.kHighsBasisStatusZero:
+		return Zero
+	case C.kHighsBasisStatusNonbasic:
+		return NonBasic
+	default:
+		return UnknownBasisStatus
+	}
+}
+
+// A ModelStatus represents the status of an attempt to solve a model.
+type ModelStatus int
+
+// These are the values a ModelStatus accepts.
+const (
+	UnknownModelStatus ModelStatus = iota
+	NotSet
+	LoadError
+	ModelError
+	PresolveError
+	SolveError
+	PostsolveError
+	ModelEmpty
+	Optimal
+	Infeasible
+	UnboundedOrInfeasible
+	Unbounded
+	ObjectiveBound
+	ObjectiveTarget
+	TimeLimit
+	IterationLimit
+)
+
+// convertHighsModelStatus converts a kHighsModelStatus to a ModelStatus.
+func convertHighsModelStatus(hms C.HighsInt) ModelStatus {
+	switch hms {
+	case C.kHighsModelStatusNotset:
+		return NotSet
+	case C.kHighsModelStatusLoadError:
+		return LoadError
+	case C.kHighsModelStatusModelError:
+		return ModelError
+	case C.kHighsModelStatusPresolveError:
+		return PresolveError
+	case C.kHighsModelStatusSolveError:
+		return SolveError
+	case C.kHighsModelStatusPostsolveError:
+		return PostsolveError
+	case C.kHighsModelStatusModelEmpty:
+		return ModelEmpty
+	case C.kHighsModelStatusOptimal:
+		return Optimal
+	case C.kHighsModelStatusInfeasible:
+		return Infeasible
+	case C.kHighsModelStatusUnboundedOrInfeasible:
+		return UnboundedOrInfeasible
+	case C.kHighsModelStatusUnbounded:
+		return Unbounded
+	case C.kHighsModelStatusObjectiveBound:
+		return ObjectiveBound
+	case C.kHighsModelStatusObjectiveTarget:
+		return ObjectiveTarget
+	case C.kHighsModelStatusTimeLimit:
+		return TimeLimit
+	case C.kHighsModelStatusIterationLimit:
+		return IterationLimit
+	default:
+		return UnknownModelStatus
+	}
+}
+
 // A commonModel represents fields common to many HiGHS models.
 type commonModel struct {
 	maximize    bool      // true=maximize; false=minimize
