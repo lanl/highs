@@ -328,3 +328,23 @@ func (m *commonModel) replaceNilSlices() (int, int, bool) {
 	// Return the row and column sizes.
 	return nr, nc, true
 }
+
+// AddRow is a convenience function that lets the caller add to the
+// model a single row's lower bound, matrix coefficients (specified
+// densely, but stored sparsely), and upper bound.
+func (m *commonModel) AddRow(lb float64, coeffs []float64, ub float64) {
+	r := len(m.rowLower)
+	m.rowLower = append(m.rowLower, lb)
+	m.rowUpper = append(m.rowUpper, ub)
+	for c, v := range coeffs {
+		if v == 0.0 {
+			continue
+		}
+		nz := Nonzero{
+			Row:   r,
+			Col:   c,
+			Value: v,
+		}
+		m.coeffMatrix = append(m.coeffMatrix, nz)
+	}
+}
