@@ -116,7 +116,7 @@ func convertHighsModelStatus(hms C.HighsInt) ModelStatus {
 // A commonModel represents fields common to many HiGHS models.
 type commonModel struct {
 	maximize    bool      // true=maximize; false=minimize
-	colCosts    []float64 // Column costs (objective function)
+	colCosts    []float64 // Column costs (i.e., the objective function)
 	offset      float64   // Objective-function offset
 	colLower    []float64 // Column lower bounds
 	colUpper    []float64 // Column upper bounds
@@ -251,4 +251,80 @@ func (m *commonModel) makeSparseMatrix() (start, index []C.HighsInt, value []C.d
 		value = append(value, C.double(nz.Value))
 	}
 	return start, index, value
+}
+
+// replaceNilSlices infers the number of rows and columns in a model and
+// replaces nil slices with default-valued slices of the appropriate size.  It
+// returns the number of rows, the number of columns, and a success flag.  The
+// success flag is false if the number of columns is inconsistent across
+// non-nil fields.
+func (m *commonModel) replaceNilSlices() (int, int, bool) {
+	// Infer the number of rows and columns in the model.
+	nc, nr := 0, 0
+	for _, nz := range m.coeffMatrix {
+		if nz.Row >= nr {
+			nr = nz.Row + 1
+		}
+		if nz.Col >= nc {
+			nc = nz.Col + 1
+		}
+	}
+	if len(m.colCosts) > nc {
+		nc = len(m.colCosts)
+	}
+	if len(m.colLower) > nc {
+		nc = len(m.colLower)
+	}
+	if len(m.colUpper) > nc {
+		nc = len(m.colUpper)
+	}
+	if len(m.rowLower) > nr {
+		nr = len(m.rowLower)
+	}
+	if len(m.rowUpper) > nr {
+		nr = len(m.rowUpper)
+	}
+
+	// Replace nil slices with slices of the appropriate size.
+	if m.colCosts == nil {
+		m.colCosts = make([]float64, nc)
+	}
+	mInf, pInf := math.Inf(-1), math.Inf(1)
+	if m.colLower == nil {
+		m.colLower = make([]float64, nc)
+		for i := range m.colLower {
+			m.colLower[i] = mInf
+		}
+	}
+	if m.colUpper == nil {
+		m.colUpper = make([]float64, nc)
+		for i := range m.colUpper {
+			m.colUpper[i] = pInf
+		}
+	}
+	if m.rowLower == nil {
+		m.rowLower = make([]float64, nr)
+		for i := range m.rowLower {
+			m.rowLower[i] = mInf
+		}
+	}
+	if m.rowUpper == nil {
+		m.rowUpper = make([]float64, nr)
+		for i := range m.rowUpper {
+			m.rowUpper[i] = pInf
+		}
+	}
+
+	// Complain if any slice is the wrong size.
+	switch {
+	case len(m.colLower) != nc:
+		return 0, 0, false
+	case len(m.colLower) != nc, len(m.colUpper) != nc:
+		return 0, 0, false
+	case len(m.rowLower) != nr, len(m.rowUpper) != nr:
+		return 0, 0, false
+	}
+
+	// Return the row and column sizes.
+	return nr, nc, true
 }
