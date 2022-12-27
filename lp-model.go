@@ -1,5 +1,5 @@
-// This file provides support for constructing and solving
-// linear-programming models.
+// This file provides support for constructing and solving linear-programming
+// models.
 
 package highs
 
