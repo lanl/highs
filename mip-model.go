@@ -1,5 +1,5 @@
-// This file provides support for constructing and solving linear-programming
-// models.
+// This file provides support for constructing and solving mixed-integer
+// programming models.
 
 package highs
 
@@ -8,32 +8,56 @@ import "fmt"
 // #include "highs-externs.h"
 import "C"
 
-// An LPModel represents a HiGHS linear-programming model.
-type LPModel struct {
+// A MIPModel represents a HiGHS mixed-integer programming model.
+type MIPModel struct {
 	commonModel
+	varTypes []VariableType // Type of each model variable
 }
 
-// NewLPModel allocates and returns an empty linear-programming model.
-func NewLPModel() *LPModel {
-	return &LPModel{}
+// NewMIPModel allocates and returns an empty mixed-integer programming model.
+func NewMIPModel() *MIPModel {
+	return &MIPModel{}
 }
 
-// An LPSolution encapsulates all the values returned by HiGHS's
-// linear-programming solver.
-type LPSolution struct {
-	Status       ModelStatus   // Status of the LP solve
-	ColumnPrimal []float64     // Primal column solution
-	RowPrimal    []float64     // Primal row solution
-	ColumnDual   []float64     // Dual column solution
-	RowDual      []float64     // Dual row solution
-	ColumnBasis  []BasisStatus // Basis status of each column
-	RowBasis     []BasisStatus // Basis status of each row
-	Objective    float64       // Objective value
+// A VariableType indicates the type of a model variable.
+type VariableType int
+
+// These are the values a VariableType accepts.
+const (
+	ContinuousType VariableType = iota
+	IntegerType
+	SemiContinuousType
+	SemiIntegerType
+	ImplicitIntegerType
+)
+
+// variableTypeToHighs maps a VariableType to a kHighsVarType.  This slice must
+// be kept up to date with the VariableType constants.
+var variableTypeToHighs = []C.HighsInt{
+	C.kHighsVarTypeContinuous,
+	C.kHighsVarTypeInteger,
+	C.kHighsVarTypeSemiContinuous,
+	C.kHighsVarTypeSemiInteger,
+	C.kHighsVarTypeImplicitInteger,
 }
 
-// Solve solves a linear-programming model.
-func (m *LPModel) Solve() (LPSolution, error) {
-	var soln LPSolution
+// SetVariableTypes sets the type of each variable in the model.
+func (m *MIPModel) SetVariableTypes(vt []VariableType) {
+	m.varTypes = vt
+}
+
+// A MIPSolution encapsulates all the values returned by HiGHS's mixed-integer
+// programming solver.
+type MIPSolution struct {
+	Status       ModelStatus // Status of the LP solve
+	ColumnPrimal []float64   // Primal column solution
+	RowPrimal    []float64   // Primal row solution
+	Objective    float64     // Objective value
+}
+
+// Solve solves a mixed-integer programming model.
+func (m *MIPModel) Solve() (MIPSolution, error) {
+	var soln MIPSolution
 
 	// Find the model's dimensions.
 	nr, nc, ok := m.replaceNilSlices()
@@ -59,25 +83,24 @@ func (m *LPModel) Solve() (LPSolution, error) {
 	colUpper := convertSlice[C.double, float64](m.colUpper)
 	rowLower := convertSlice[C.double, float64](m.rowLower)
 	rowUpper := convertSlice[C.double, float64](m.rowUpper)
+	integrality := make([]C.HighsInt, nc) // Defaults to ContinuousType
+	for i, vt := range m.varTypes {
+		integrality[i] = variableTypeToHighs[vt]
+	}
 
 	// Allocate storage for return values.
 	colValue := make([]C.double, nc)
-	colDual := make([]C.double, nc)
 	rowValue := make([]C.double, nr)
-	rowDual := make([]C.double, nr)
-	colBasisStatus := make([]C.HighsInt, nc)
-	rowBasisStatus := make([]C.HighsInt, nr)
 	var modelStatus C.HighsInt
 
-	// We finally can invoke Highs_lpCall!
-	success := C.Highs_lpCall(numCol, numRow, numNZ,
+	// We finally can invoke Highs_mipCall!
+	success := C.Highs_mipCall(numCol, numRow, numNZ,
 		aFormat, sense, offset,
 		&colCost[0], &colLower[0], &colUpper[0],
 		&rowLower[0], &rowUpper[0],
 		&aStart[0], &aIndex[0], &aValue[0],
-		&colValue[0], &colDual[0],
-		&rowValue[0], &rowDual[0],
-		&colBasisStatus[0], &rowBasisStatus[0],
+		&integrality[0],
+		&colValue[0], &rowValue[0],
 		&modelStatus)
 	switch success {
 	case C.kHighsStatusOk:
@@ -94,16 +117,6 @@ func (m *LPModel) Solve() (LPSolution, error) {
 	soln.Status = convertHighsModelStatus(modelStatus)
 	soln.ColumnPrimal = convertSlice[float64, C.double](colValue)
 	soln.RowPrimal = convertSlice[float64, C.double](rowValue)
-	soln.ColumnDual = convertSlice[float64, C.double](colDual)
-	soln.RowDual = convertSlice[float64, C.double](rowDual)
-	soln.ColumnBasis = make([]BasisStatus, nc)
-	for i, cbs := range colBasisStatus {
-		soln.ColumnBasis[i] = convertHighsBasisStatus(cbs)
-	}
-	soln.RowBasis = make([]BasisStatus, nr)
-	for i, rbs := range rowBasisStatus {
-		soln.RowBasis[i] = convertHighsBasisStatus(rbs)
-	}
 
 	// Compute the objective value as a convenience for the user.
 	soln.Objective = m.offset

@@ -13,6 +13,12 @@ extern const HighsInt kHighsStatusError;
 extern const HighsInt kHighsStatusOk;
 extern const HighsInt kHighsStatusWarning;
 
+extern const HighsInt kHighsVarTypeContinuous;
+extern const HighsInt kHighsVarTypeInteger;
+extern const HighsInt kHighsVarTypeSemiContinuous;
+extern const HighsInt kHighsVarTypeSemiInteger;
+extern const HighsInt kHighsVarTypeImplicitInteger;
+
 extern const HighsInt kHighsObjSenseMinimize;
 extern const HighsInt kHighsObjSenseMaximize;
 
@@ -54,4 +60,14 @@ HighsInt Highs_lpCall(const HighsInt num_col, const HighsInt num_row,
                       double* row_dual, HighsInt* col_basis_status,
                       HighsInt* row_basis_status, HighsInt* model_status);
 
+extern
+HighsInt Highs_mipCall(const HighsInt num_col, const HighsInt num_row,
+                       const HighsInt num_nz, const HighsInt a_format,
+                       const HighsInt sense, const double offset,
+                       const double* col_cost, const double* col_lower,
+                       const double* col_upper, const double* row_lower,
+                       const double* row_upper, const HighsInt* a_start,
+                       const HighsInt* a_index, const double* a_value,
+                       const HighsInt* integrality, double* col_value,
+                       double* row_value, HighsInt* model_status);
 #endif

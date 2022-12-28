@@ -33,8 +33,7 @@ const (
 	NonBasic
 )
 
-// convertHighsBasisStatus converts a kHighsBasisStatus value to a BasisStatus
-// value.
+// convertHighsBasisStatus converts a kHighsBasisStatus to a BasisStatus.
 func convertHighsBasisStatus(hbs C.HighsInt) BasisStatus {
 	switch hbs {
 	case C.kHighsBasisStatusLower:
