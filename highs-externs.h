@@ -70,4 +70,5 @@ HighsInt Highs_mipCall(const HighsInt num_col, const HighsInt num_row,
                        const HighsInt* a_index, const double* a_value,
                        const HighsInt* integrality, double* col_value,
                        double* row_value, HighsInt* model_status);
+
 #endif
