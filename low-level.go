@@ -241,6 +241,18 @@ func (m *RawModel) AddDenseRow(lb float64, coeffs []float64, ub float64) error {
 	return convertHighsStatusToError(status, "AddDenseRow")
 }
 
+// SetIntegrality specifies the type of each column (variable) in the model.
+func (m *RawModel) SetIntegrality(ts []VariableType) error {
+	integrality := make([]C.HighsInt, len(ts))
+	for i, t := range ts {
+		integrality[i] = variableTypeToHighs[t]
+	}
+	status := C.Highs_changeColsIntegralityByRange(m.obj,
+		0, C.HighsInt(len(integrality)-1),
+		&integrality[0])
+	return convertHighsStatusToError(status, "SetIntegrality")
+}
+
 // A RawSolution encapsulates all the values returned by various HiGHS solvers
 // and provides methods to retrieve additional information.
 type RawSolution struct {
