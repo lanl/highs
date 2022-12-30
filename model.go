@@ -112,6 +112,20 @@ func convertHighsModelStatus(hms C.HighsInt) ModelStatus {
 	}
 }
 
+// convertHighsStatusToError converts a kHighsStatus to a Go error.
+func convertHighsStatusToError(st C.HighsInt, caller string) error {
+	switch st {
+	case C.kHighsStatusOk:
+		return nil
+	case C.kHighsStatusError:
+		return fmt.Errorf("%s failed with an error", caller)
+	case C.kHighsStatusWarning:
+		return fmt.Errorf("%s failed with a warning", caller)
+	default:
+		return fmt.Errorf("%s failed with unknown status", caller)
+	}
+}
+
 // A commonModel represents fields common to many HiGHS models.
 type commonModel struct {
 	maximize    bool      // true=maximize; false=minimize

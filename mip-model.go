@@ -94,7 +94,7 @@ func (m *MIPModel) Solve() (MIPSolution, error) {
 	var modelStatus C.HighsInt
 
 	// We finally can invoke Highs_mipCall!
-	success := C.Highs_mipCall(numCol, numRow, numNZ,
+	status := C.Highs_mipCall(numCol, numRow, numNZ,
 		aFormat, sense, offset,
 		&colCost[0], &colLower[0], &colUpper[0],
 		&rowLower[0], &rowUpper[0],
@@ -102,15 +102,9 @@ func (m *MIPModel) Solve() (MIPSolution, error) {
 		&integrality[0],
 		&colValue[0], &rowValue[0],
 		&modelStatus)
-	switch success {
-	case C.kHighsStatusOk:
-		// Success
-	case C.kHighsStatusWarning:
-		return soln, fmt.Errorf("model failed with a warning")
-	case C.kHighsStatusError:
-		return soln, fmt.Errorf("model failed with an error")
-	default:
-		return soln, fmt.Errorf("model failed with an unknown status")
+	err := convertHighsStatusToError(status, "Solve")
+	if err != nil {
+		return soln, err
 	}
 
 	// Convert C return types to Go types.

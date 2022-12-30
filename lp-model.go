@@ -70,7 +70,7 @@ func (m *LPModel) Solve() (LPSolution, error) {
 	var modelStatus C.HighsInt
 
 	// We finally can invoke Highs_lpCall!
-	success := C.Highs_lpCall(numCol, numRow, numNZ,
+	status := C.Highs_lpCall(numCol, numRow, numNZ,
 		aFormat, sense, offset,
 		&colCost[0], &colLower[0], &colUpper[0],
 		&rowLower[0], &rowUpper[0],
@@ -79,15 +79,9 @@ func (m *LPModel) Solve() (LPSolution, error) {
 		&rowValue[0], &rowDual[0],
 		&colBasisStatus[0], &rowBasisStatus[0],
 		&modelStatus)
-	switch success {
-	case C.kHighsStatusOk:
-		// Success
-	case C.kHighsStatusWarning:
-		return soln, fmt.Errorf("model failed with a warning")
-	case C.kHighsStatusError:
-		return soln, fmt.Errorf("model failed with an error")
-	default:
-		return soln, fmt.Errorf("model failed with an unknown status")
+	err := convertHighsStatusToError(status, "Solve")
+	if err != nil {
+		return soln, err
 	}
 
 	// Convert C return types to Go types.
