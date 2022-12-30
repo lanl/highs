@@ -4,6 +4,7 @@
 package highs
 
 import (
+	"fmt"
 	"runtime"
 	"unsafe"
 )
@@ -154,6 +155,92 @@ func (m *RawModel) GetStringOption(opt string) (string, error) {
 	return C.GoString(val), nil
 }
 
+// SetMaximization tells a model to maximize (true) or minimize (false) its
+// objective function.
+func (m *RawModel) SetMaximization(max bool) error {
+	var sense C.HighsInt = C.kHighsObjSenseMinimize
+	if max {
+		sense = C.kHighsObjSenseMaximize
+	}
+	status := C.Highs_changeObjectiveSense(m.obj, sense)
+	return convertHighsStatusToError(status, "SetMaximization")
+}
+
+// SetColumnCosts specifies a model's column costs (i.e., its objective
+// function).
+func (m *RawModel) SetColumnCosts(cs []float64) error {
+	cost := convertSlice[C.double, float64](cs)
+	status := C.Highs_changeColsCostByRange(m.obj,
+		0, C.HighsInt(len(cs)-1),
+		&cost[0])
+	return convertHighsStatusToError(status, "SetColumnCosts")
+}
+
+// SetOffset specifies a constant offset for the objective function.
+func (m *RawModel) SetOffset(o float64) error {
+	status := C.Highs_changeObjectiveOffset(m.obj, C.double(o))
+	return convertHighsStatusToError(status, "SetOffset")
+}
+
+// AddColumnBounds appends to a model's lower and upper column bounds.  If the
+// lower-bound argument is nil it is replaced with a slice of negative
+// infinities.  If the upper-bound argument is nil, it is replaced with a slice
+// of positive infinities.
+func (m *RawModel) AddColumnBounds(lb, ub []float64) error {
+	colLower, colUpper := prepareBounds(lb, ub)
+	lower := convertSlice[C.double, float64](colLower)
+	upper := convertSlice[C.double, float64](colUpper)
+	status := C.Highs_addVars(m.obj, C.HighsInt(len(lower)),
+		&lower[0], &upper[0])
+	return convertHighsStatusToError(status, "SetColumnBounds")
+}
+
+// AddCompSparseRows appends compressed sparse rows to the model.
+func (m *RawModel) AddCompSparseRows(lb []float64, start []int, index []int, value []float64, ub []float64) error {
+	// Check for simple errors.
+	if len(lb) != len(ub) {
+		return fmt.Errorf("lb and ub must be the same length (%d vs. %d)",
+			len(lb), len(ub))
+	}
+	if len(index) != len(value) {
+		return fmt.Errorf("index and value must be the same length (%d vs. %d)",
+			len(index), len(value))
+	}
+
+	// Invoke the HiGHS API.
+	hLower := convertSlice[C.double, float64](lb)
+	hUpper := convertSlice[C.double, float64](ub)
+	hStart := convertSlice[C.HighsInt, int](start)
+	hIndex := convertSlice[C.HighsInt, int](index)
+	hValue := convertSlice[C.double, float64](value)
+	status := C.Highs_addRows(m.obj, C.HighsInt(len(lb)),
+		&hLower[0], &hUpper[0],
+		C.HighsInt(len(value)), &hStart[0], &hIndex[0], &hValue[0])
+	return convertHighsStatusToError(status, "AddCompSparseRows")
+}
+
+// AddDenseRow is a convenience function that lets the caller add to the model
+// a single row's lower bound, matrix coefficients (specified densely, but
+// stored sparsely), and upper bound.
+func (m *RawModel) AddDenseRow(lb float64, coeffs []float64, ub float64) error {
+	// Convert dense to sparse.
+	var numNewNz C.HighsInt
+	index := make([]C.HighsInt, 0, len(coeffs))
+	value := make([]C.double, 0, len(coeffs))
+	for i, v := range coeffs {
+		if v == 0.0 {
+			continue
+		}
+		index = append(index, C.HighsInt(i))
+		value = append(value, C.double(v))
+	}
+
+	// Add the row.
+	status := C.Highs_addRow(m.obj, C.double(lb), C.double(ub),
+		numNewNz, &index[0], &value[0])
+	return convertHighsStatusToError(status, "AddDenseRow")
+}
+
 // A RawSolution encapsulates all the values returned by various HiGHS solvers
 // and provides methods to retrieve additional information.
 type RawSolution struct {
@@ -228,16 +315,17 @@ func (m *RawModel) Solve() (*RawSolution, error) {
 		return &RawSolution{}, err
 	}
 
-	// Extract various aspects of the solution as Go data.
+	// Extract the solution as Go data.
 	var soln RawSolution
-	soln.Status = convertHighsModelStatus(C.Highs_getModelStatus(m.obj))
-	nc := int(C.Highs_getNumCol(m.obj))
-	nr := int(C.Highs_getNumRow(m.obj))
+	soln.obj = m.obj
+	soln.Status = convertHighsModelStatus(C.Highs_getModelStatus(soln.obj))
+	nc := int(C.Highs_getNumCol(soln.obj))
+	nr := int(C.Highs_getNumRow(soln.obj))
 	colValue := make([]C.double, nc)
 	colDual := make([]C.double, nc)
 	rowValue := make([]C.double, nr)
 	rowDual := make([]C.double, nr)
-	status = C.Highs_getSolution(m.obj, &colValue[0], &colDual[0],
+	status = C.Highs_getSolution(soln.obj, &colValue[0], &colDual[0],
 		&rowValue[0], &rowDual[0])
 	err = convertHighsStatusToError(status, "Highs_getSolution")
 	if err != nil {
@@ -247,5 +335,29 @@ func (m *RawModel) Solve() (*RawSolution, error) {
 	soln.RowPrimal = convertSlice[float64, C.double](rowValue)
 	soln.ColumnDual = convertSlice[float64, C.double](colDual)
 	soln.RowDual = convertSlice[float64, C.double](rowDual)
+	soln.Objective, err = soln.GetFloat64Info("objective_function_value")
+	if err != nil {
+		return &RawSolution{}, err
+	}
+
+	// If basis data are available, convert them from C to Go.
+	bValid, err := soln.GetIntInfo("basis_validity")
+	if err == nil && bValid == int(C.kHighsBasisValidityValid) {
+		colBasisStatus := make([]C.HighsInt, nc)
+		rowBasisStatus := make([]C.HighsInt, nr)
+		status = C.Highs_getBasis(soln.obj, &colBasisStatus[0], &rowBasisStatus[0])
+		err = convertHighsStatusToError(status, "Highs_getBasis")
+		if err != nil {
+			return &RawSolution{}, err
+		}
+		soln.ColumnBasis = make([]BasisStatus, nc)
+		for i, cbs := range colBasisStatus {
+			soln.ColumnBasis[i] = convertHighsBasisStatus(cbs)
+		}
+		soln.RowBasis = make([]BasisStatus, nr)
+		for i, rbs := range rowBasisStatus {
+			soln.RowBasis[i] = convertHighsBasisStatus(rbs)
+		}
+	}
 	return &soln, nil
 }

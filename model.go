@@ -139,7 +139,7 @@ type commonModel struct {
 }
 
 // prepareBounds replaces nil column or row bounds with infinities.
-func (m *commonModel) prepareBounds(lb, ub []float64) ([]float64, []float64) {
+func prepareBounds(lb, ub []float64) ([]float64, []float64) {
 	switch {
 	case lb == nil && ub == nil:
 		// No bounds were provided.
@@ -168,7 +168,7 @@ func (m *commonModel) prepareBounds(lb, ub []float64) ([]float64, []float64) {
 // infinities.  If the upper-bound argument is nil, it is replaced with a slice
 // of positive infinities.
 func (m *commonModel) SetRowBounds(lb, ub []float64) {
-	m.rowLower, m.rowUpper = m.prepareBounds(lb, ub)
+	m.rowLower, m.rowUpper = prepareBounds(lb, ub)
 }
 
 // SetColumnBounds specifies a model's lower and upper column bounds.  If the
@@ -176,7 +176,7 @@ func (m *commonModel) SetRowBounds(lb, ub []float64) {
 // infinities.  If the upper-bound argument is nil, it is replaced with a slice
 // of positive infinities.
 func (m *commonModel) SetColumnBounds(lb, ub []float64) {
-	m.colLower, m.colUpper = m.prepareBounds(lb, ub)
+	m.colLower, m.colUpper = prepareBounds(lb, ub)
 }
 
 // SetCoefficients specifies a model's coefficient matrix in terms of its
