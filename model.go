@@ -342,10 +342,10 @@ func (m *commonModel) replaceNilSlices() (int, int, bool) {
 	return nr, nc, true
 }
 
-// AddRow is a convenience function that lets the caller add to the
-// model a single row's lower bound, matrix coefficients (specified
-// densely, but stored sparsely), and upper bound.
-func (m *commonModel) AddRow(lb float64, coeffs []float64, ub float64) {
+// AddDenseRow is a convenience function that lets the caller add to the model
+// a single row's lower bound, matrix coefficients (specified densely, but
+// stored sparsely), and upper bound.
+func (m *commonModel) AddDenseRow(lb float64, coeffs []float64, ub float64) {
 	r := len(m.rowLower)
 	m.rowLower = append(m.rowLower, lb)
 	m.rowUpper = append(m.rowUpper, ub)

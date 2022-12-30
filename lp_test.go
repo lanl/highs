@@ -138,9 +138,9 @@ func TestMinimalAPIMax(t *testing.T) {
 	}
 }
 
-// TestAddRow repeats the test in TestMinimalAPIMin but using the AddRow
-// convenience method.
-func TestAddRow(t *testing.T) {
+// TestAddDenseRow repeats the test in TestMinimalAPIMin but using the
+// AddDenseRow convenience method.
+func TestAddDenseRow(t *testing.T) {
 	// Prepare the model.
 	model := NewLPModel()
 	model.SetMaximization(false) // Unnecessary but included for testing
@@ -150,9 +150,9 @@ func TestAddRow(t *testing.T) {
 	model.SetColumnCosts(colCosts)
 	model.SetColumnBounds([]float64{0.0, 1.0},
 		[]float64{4.0, 1.0e30})
-	model.AddRow(-1.0e30, []float64{0.0, 1.0}, 7.0)
-	model.AddRow(5.0, []float64{1.0, 2.0}, 15.0)
-	model.AddRow(6.0, []float64{3.0, 2.0}, 1.0e30)
+	model.AddDenseRow(-1.0e30, []float64{0.0, 1.0}, 7.0)
+	model.AddDenseRow(5.0, []float64{1.0, 2.0}, 15.0)
+	model.AddDenseRow(6.0, []float64{3.0, 2.0}, 1.0e30)
 
 	// Solve the model.
 	soln, err := model.Solve()
