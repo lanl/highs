@@ -29,6 +29,29 @@ func NewRawModel() *RawModel {
 	return model
 }
 
+// ReadModelFromFile overwrites the model with a model read in MPS format from
+// a named file.
+func (m *RawModel) ReadModelFromFile(fn string) error {
+	// Convert the filename argument from Go to C.
+	fname := C.CString(fn)
+	defer C.free(unsafe.Pointer(fname))
+
+	// Read into the model.
+	status := C.Highs_readModel(m.obj, fname)
+	return convertHighsStatusToError(status, "ReadModelFromFile")
+}
+
+// WriteModelToFile writes a model in MPS format to a named file.
+func (m *RawModel) WriteModelToFile(fn string) error {
+	// Convert the filename argument from Go to C.
+	fname := C.CString(fn)
+	defer C.free(unsafe.Pointer(fname))
+
+	// Write the model.
+	status := C.Highs_writeModel(m.obj, fname)
+	return convertHighsStatusToError(status, "WriteModelToFile")
+}
+
 // SetBoolOption assigns a Boolean value to a named option.
 func (m *RawModel) SetBoolOption(opt string, v bool) error {
 	// Convert arguments from Go to C.
@@ -233,6 +256,7 @@ func (m *RawModel) AddDenseRow(lb float64, coeffs []float64, ub float64) error {
 		}
 		index = append(index, C.HighsInt(i))
 		value = append(value, C.double(v))
+		numNewNz++
 	}
 
 	// Add the row.
