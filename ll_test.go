@@ -13,23 +13,15 @@ import "testing"
 //	       6 <= 3x_0 + 2x_1
 //	0 <= x_0 <= 4; 1 <= x_1
 func TestFullAPIMin(t *testing.T) {
-	// Define a function that calls another function and aborts the test if
-	// it returns a non-nil error.
-	checkErr := func(e error) {
-		if e != nil {
-			t.Fatal(e)
-		}
-	}
-	
 	// Prepare the model.
 	model := NewRawModel()
-	checkErr(model.SetBoolOption("output_flag", false))
-	checkErr(model.SetMaximization(false)) // Unnecessary but included for testing
-	checkErr(model.SetOffset(3.0))
-	checkErr(model.AddColumnBounds([]float64{0.0, 1.0},
+	checkErr(t, model.SetBoolOption("output_flag", false))
+	checkErr(t, model.SetMaximization(false)) // Unnecessary but included for testing
+	checkErr(t, model.SetOffset(3.0))
+	checkErr(t, model.AddColumnBounds([]float64{0.0, 1.0},
 		[]float64{4.0, 1.0e30}))
-	checkErr(model.SetColumnCosts([]float64{1.0, 1.0}))
-	checkErr(model.AddCompSparseRows([]float64{-1.0e30, 5.0, 6.0},
+	checkErr(t, model.SetColumnCosts([]float64{1.0, 1.0}))
+	checkErr(t, model.AddCompSparseRows([]float64{-1.0e30, 5.0, 6.0},
 		[]int{0, 1, 3}, []int{1, 0, 1, 0, 1}, []float64{1.0, 1.0, 2.0, 3.0, 2.0},
 		[]float64{7.0, 15.0, 1.0e30}))
 
@@ -53,5 +45,29 @@ func TestFullAPIMin(t *testing.T) {
 	// Validate the objective value.
 	if soln.Objective != 5.75 {
 		t.Fatalf("objective value was %.2f but should have been 5.75", soln.Objective)
+	}
+}
+
+// TestFullAPIInfeasible verifies that infeasible models are handled properly.
+// It defines the model,
+//
+//	Satisfy 4 <= x_0 <= 4
+//	        5 <= x_0 <= 5
+//	subject to 0 <= x_0 <= 10
+func TestFullAPIInfeasible(t *testing.T) {
+	// Prepare the model.
+	model := NewRawModel()
+	checkErr(t, model.SetBoolOption("output_flag", false))
+	checkErr(t, model.AddColumnBounds([]float64{0.0, 0.0}, []float64{10.0, 10.0}))
+	checkErr(t, model.AddDenseRow(4.0, []float64{1.0}, 4.0))
+	checkErr(t, model.AddDenseRow(5.0, []float64{1.0}, 5.0))
+
+	// Solve the model.
+	soln, err := model.Solve()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if soln.Status != Infeasible {
+		t.Fatalf("solve returned %s instead of Infeasible", soln.Status)
 	}
 }
