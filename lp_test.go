@@ -4,18 +4,6 @@ package highs
 
 import "testing"
 
-// compSlices is a helper function that compare two slices for equality.
-func compSlices[AType, EType numeric](t *testing.T, name string, act []AType, exp []EType) {
-	if len(act) != len(exp) {
-		t.Fatalf("%s: expected %v but observed %v", name, exp, act)
-	}
-	for i, e := range exp {
-		if EType(act[i]) != e {
-			t.Fatalf("%s: expected %v but observed %v", name, exp, act)
-		}
-	}
-}
-
 // TestMakeSparseMatrix tests the conversion of a slice of Nonzeros to start,
 // index, and value slices.
 func TestMakeSparseMatrix(t *testing.T) {

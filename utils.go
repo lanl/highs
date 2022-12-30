@@ -2,7 +2,9 @@
 
 package highs
 
-import "golang.org/x/exp/constraints"
+import (
+	"golang.org/x/exp/constraints"
+)
 
 // A numeric is any integer or any floating-point type.
 type numeric interface {
