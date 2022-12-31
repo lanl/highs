@@ -145,7 +145,7 @@ func TestWriteModel(t *testing.T) {
 	}
 	defer mpsFile.Close()
 	t.Logf("Writing MPS to %s", mpsFile.Name())
-	model.WriteModelToFile(mpsFile.Name()) // TODO: Check errors; ignore warnings.
+	checkErr(t, model.WriteModelToFile(mpsFile.Name()))
 }
 
 // TestReadModel reads the model previously written by TestWriteModel and

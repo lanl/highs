@@ -38,7 +38,7 @@ func (m *RawModel) ReadModelFromFile(fn string) error {
 
 	// Read into the model.
 	status := C.Highs_readModel(m.obj, fname)
-	return convertHighsStatusToError(status, "ReadModelFromFile")
+	return newHighsStatus(status, "Highs_readModel", "ReadModelFromFile")
 }
 
 // WriteModelToFile writes a model in MPS format to a named file.
@@ -49,7 +49,7 @@ func (m *RawModel) WriteModelToFile(fn string) error {
 
 	// Write the model.
 	status := C.Highs_writeModel(m.obj, fname)
-	return convertHighsStatusToError(status, "WriteModelToFile")
+	return newHighsStatus(status, "Highs_writeModel", "WriteModelToFile")
 }
 
 // SetBoolOption assigns a Boolean value to a named option.
@@ -64,7 +64,7 @@ func (m *RawModel) SetBoolOption(opt string, v bool) error {
 
 	// Set the option.
 	status := C.Highs_setBoolOptionValue(m.obj, str, val)
-	return convertHighsStatusToError(status, "SetBoolOption")
+	return newHighsStatus(status, "Highs_setBoolOptionValue", "SetBoolOption")
 }
 
 // SetIntOption assigns an integer value to a named option.
@@ -76,7 +76,7 @@ func (m *RawModel) SetIntOption(opt string, v int) error {
 
 	// Set the option.
 	status := C.Highs_setIntOptionValue(m.obj, str, val)
-	return convertHighsStatusToError(status, "SetIntOption")
+	return newHighsStatus(status, "Highs_setIntOptionValue", "SetIntOption")
 }
 
 // SetFloat64Option assigns a floating-point value to a named option.
@@ -88,7 +88,7 @@ func (m *RawModel) SetFloat64Option(opt string, v float64) error {
 
 	// Set the option.
 	status := C.Highs_setDoubleOptionValue(m.obj, str, val)
-	return convertHighsStatusToError(status, "SetFloat64Option")
+	return newHighsStatus(status, "Highs_setDoubleOptionValue", "SetFloat64Option")
 }
 
 // SetStringOption assigns a string value to a named option.
@@ -101,7 +101,7 @@ func (m *RawModel) SetStringOption(opt string, v string) error {
 
 	// Set the option.
 	status := C.Highs_setStringOptionValue(m.obj, str, val)
-	return convertHighsStatusToError(status, "SetStringOption")
+	return newHighsStatus(status, "Highs_setStringOptionValue", "SetStringOption")
 }
 
 // GetBoolOption returns the Boolean value of a named option.
@@ -113,7 +113,7 @@ func (m *RawModel) GetBoolOption(opt string) (bool, error) {
 	// Get the value.
 	var val C.HighsInt
 	status := C.Highs_getBoolOptionValue(m.obj, str, &val)
-	err := convertHighsStatusToError(status, "GetBoolOption")
+	err := newHighsStatus(status, "Highs_getBoolOptionValue", "GetBoolOption")
 	if err != nil {
 		return false, err
 	}
@@ -133,7 +133,7 @@ func (m *RawModel) GetIntOption(opt string) (int, error) {
 	// Get the value.
 	var val C.HighsInt
 	status := C.Highs_getIntOptionValue(m.obj, str, &val)
-	err := convertHighsStatusToError(status, "GetIntOption")
+	err := newHighsStatus(status, "Highs_getIntOptionValue", "GetIntOption")
 	if err != nil {
 		return 0, err
 	}
@@ -149,7 +149,7 @@ func (m *RawModel) GetFloat64Option(opt string) (float64, error) {
 	// Get the value.
 	var val C.double
 	status := C.Highs_getDoubleOptionValue(m.obj, str, &val)
-	err := convertHighsStatusToError(status, "GetFloat64Option")
+	err := newHighsStatus(status, "Highs_getDoubleOptionValue", "GetFloat64Option")
 	if err != nil {
 		return 0.0, err
 	}
@@ -171,7 +171,7 @@ func (m *RawModel) GetStringOption(opt string) (string, error) {
 
 	// Get the value.
 	status := C.Highs_getStringOptionValue(m.obj, str, val)
-	err := convertHighsStatusToError(status, "GetStringOption")
+	err := newHighsStatus(status, "Highs_getStringOptionValue", "GetStringOption")
 	if err != nil {
 		return "", err
 	}
@@ -186,7 +186,7 @@ func (m *RawModel) SetMaximization(max bool) error {
 		sense = C.kHighsObjSenseMaximize
 	}
 	status := C.Highs_changeObjectiveSense(m.obj, sense)
-	return convertHighsStatusToError(status, "SetMaximization")
+	return newHighsStatus(status, "Highs_changeObjectiveSense", "SetMaximization")
 }
 
 // SetColumnCosts specifies a model's column costs (i.e., its objective
@@ -196,13 +196,13 @@ func (m *RawModel) SetColumnCosts(cs []float64) error {
 	status := C.Highs_changeColsCostByRange(m.obj,
 		0, C.HighsInt(len(cs)-1),
 		&cost[0])
-	return convertHighsStatusToError(status, "SetColumnCosts")
+	return newHighsStatus(status, "Highs_changeColsCostByRange", "SetColumnCosts")
 }
 
 // SetOffset specifies a constant offset for the objective function.
 func (m *RawModel) SetOffset(o float64) error {
 	status := C.Highs_changeObjectiveOffset(m.obj, C.double(o))
-	return convertHighsStatusToError(status, "SetOffset")
+	return newHighsStatus(status, "Highs_changeObjectiveOffset", "SetOffset")
 }
 
 // AddColumnBounds appends to a model's lower and upper column bounds.  If the
@@ -215,7 +215,7 @@ func (m *RawModel) AddColumnBounds(lb, ub []float64) error {
 	upper := convertSlice[C.double, float64](colUpper)
 	status := C.Highs_addVars(m.obj, C.HighsInt(len(lower)),
 		&lower[0], &upper[0])
-	return convertHighsStatusToError(status, "SetColumnBounds")
+	return newHighsStatus(status, "Highs_addVars", "SetColumnBounds")
 }
 
 // AddCompSparseRows appends compressed sparse rows to the model.
@@ -239,7 +239,7 @@ func (m *RawModel) AddCompSparseRows(lb []float64, start []int, index []int, val
 	status := C.Highs_addRows(m.obj, C.HighsInt(len(lb)),
 		&hLower[0], &hUpper[0],
 		C.HighsInt(len(value)), &hStart[0], &hIndex[0], &hValue[0])
-	return convertHighsStatusToError(status, "AddCompSparseRows")
+	return newHighsStatus(status, "Highs_addRows", "AddCompSparseRows")
 }
 
 // AddDenseRow is a convenience function that lets the caller add to the model
@@ -262,7 +262,7 @@ func (m *RawModel) AddDenseRow(lb float64, coeffs []float64, ub float64) error {
 	// Add the row.
 	status := C.Highs_addRow(m.obj, C.double(lb), C.double(ub),
 		numNewNz, &index[0], &value[0])
-	return convertHighsStatusToError(status, "AddDenseRow")
+	return newHighsStatus(status, "Highs_addRow", "AddDenseRow")
 }
 
 // SetIntegrality specifies the type of each column (variable) in the model.
@@ -274,7 +274,7 @@ func (m *RawModel) SetIntegrality(ts []VariableType) error {
 	status := C.Highs_changeColsIntegralityByRange(m.obj,
 		0, C.HighsInt(len(integrality)-1),
 		&integrality[0])
-	return convertHighsStatusToError(status, "SetIntegrality")
+	return newHighsStatus(status, "Highs_changeColsIntegralityByRange", "SetIntegrality")
 }
 
 // A RawSolution encapsulates all the values returned by various HiGHS solvers
@@ -300,7 +300,7 @@ func (s *RawSolution) GetIntInfo(info string) (int, error) {
 	// Get the value.
 	var val C.HighsInt
 	status := C.Highs_getIntInfoValue(s.obj, str, &val)
-	err := convertHighsStatusToError(status, "GetIntInfo")
+	err := newHighsStatus(status, "Highs_getIntInfoValue", "GetIntInfo")
 	if err != nil {
 		return 0, err
 	}
@@ -317,7 +317,7 @@ func (s *RawSolution) GetInt64Info(info string) (int64, error) {
 	// Get the value.
 	var val C.int64_t
 	status := C.Highs_getInt64InfoValue(s.obj, str, &val)
-	err := convertHighsStatusToError(status, "GetInt64Info")
+	err := newHighsStatus(status, "Highs_getInt64InfoValue", "GetInt64Info")
 	if err != nil {
 		return 0, err
 	}
@@ -334,7 +334,7 @@ func (s *RawSolution) GetFloat64Info(info string) (float64, error) {
 	// Get the value.
 	var val C.double
 	status := C.Highs_getDoubleInfoValue(s.obj, str, &val)
-	err := convertHighsStatusToError(status, "GetFloat64Info")
+	err := newHighsStatus(status, "Highs_getDoubleInfoValue", "GetFloat64Info")
 	if err != nil {
 		return 0.0, err
 	}
@@ -346,7 +346,7 @@ func (m *RawModel) Solve() (*RawSolution, error) {
 	// Solve the model.  We assume the user has already set up all the
 	// required parameters.
 	status := C.Highs_run(m.obj)
-	err := convertHighsStatusToError(status, "Solve")
+	err := newHighsStatus(status, "Highs_run", "Solve")
 	if err != nil {
 		return &RawSolution{}, err
 	}
@@ -363,7 +363,7 @@ func (m *RawModel) Solve() (*RawSolution, error) {
 	rowDual := make([]C.double, nr)
 	status = C.Highs_getSolution(soln.obj, &colValue[0], &colDual[0],
 		&rowValue[0], &rowDual[0])
-	err = convertHighsStatusToError(status, "Highs_getSolution")
+	err = newHighsStatus(status, "Highs_getSolution", "Solve")
 	if err != nil {
 		return &RawSolution{}, err
 	}
@@ -382,7 +382,7 @@ func (m *RawModel) Solve() (*RawSolution, error) {
 		colBasisStatus := make([]C.HighsInt, nc)
 		rowBasisStatus := make([]C.HighsInt, nr)
 		status = C.Highs_getBasis(soln.obj, &colBasisStatus[0], &rowBasisStatus[0])
-		err = convertHighsStatusToError(status, "Highs_getBasis")
+		err = newHighsStatus(status, "Highs_getBasis", "Solve")
 		if err != nil {
 			return &RawSolution{}, err
 		}

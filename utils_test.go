@@ -2,7 +2,10 @@
 
 package highs
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 // compSlices compares two slices for equality.
 func compSlices[AType, EType numeric](t *testing.T, name string, act []AType, exp []EType) {
@@ -19,7 +22,11 @@ func compSlices[AType, EType numeric](t *testing.T, name string, act []AType, ex
 // checkErr calls another function and aborts the test if it returns a non-nil
 // error.
 func checkErr(t *testing.T, e error) {
-	if e != nil {
+	if e == nil {
+		return
+	}
+	var hs HighsStatus
+	if errors.As(e, &hs) && !hs.IsWarning() {
 		t.Fatal(e)
 	}
 }

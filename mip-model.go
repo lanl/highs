@@ -102,7 +102,7 @@ func (m *MIPModel) Solve() (MIPSolution, error) {
 		&integrality[0],
 		&colValue[0], &rowValue[0],
 		&modelStatus)
-	err := convertHighsStatusToError(status, "Solve")
+	err := newHighsStatus(status, "Highs_mipCall", "Solve")
 	if err != nil {
 		return soln, err
 	}
