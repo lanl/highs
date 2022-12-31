@@ -9,15 +9,16 @@ import (
 // #include "highs-externs.h"
 import "C"
 
-// A HighsStatus wraps a kHighsStatus, which may be an error or just a warning.
-type HighsStatus struct {
+// A CallStatus wraps a kHighsStatus returned by a call to HiGHS.  A CallStatus
+// may be an error or just a warning.
+type CallStatus struct {
 	Status int    // kHighsStatus value
 	CName  string // Name of the HiGHS function that returned a non-Ok status
 	GoName string // Name of the highs package function that called the CName function
 }
 
-// Error returns a HighsStatus as a string.
-func (e HighsStatus) Error() string {
+// Error returns a CallStatus as a string.
+func (e CallStatus) Error() string {
 	switch e.Status {
 	case int(C.kHighsStatusError):
 		return "%s failed with an error"
@@ -28,18 +29,18 @@ func (e HighsStatus) Error() string {
 	}
 }
 
-// IsWarning returns true if the HighsStatus is merely a warning.
-func (e HighsStatus) IsWarning() bool {
+// IsWarning returns true if the CallStatus is merely a warning.
+func (e CallStatus) IsWarning() bool {
 	return e.Status == int(C.kHighsStatusWarning)
 }
 
-// newHighsStatus constructs a HighsStatus or returns nil if the status
+// newCallStatus constructs a CallStatus or returns nil if the status
 // is kHighsStatusOk.
-func newHighsStatus(st C.HighsInt, hName, gName string) error {
+func newCallStatus(st C.HighsInt, hName, gName string) error {
 	if st == C.kHighsStatusOk {
 		return nil
 	}
-	return HighsStatus{
+	return CallStatus{
 		Status: int(st),
 		CName:  hName,
 		GoName: gName,

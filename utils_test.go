@@ -25,8 +25,8 @@ func checkErr(t *testing.T, e error) {
 	if e == nil {
 		return
 	}
-	var hs HighsStatus
-	if errors.As(e, &hs) && !hs.IsWarning() {
+	var cs CallStatus
+	if errors.As(e, &cs) && !cs.IsWarning() {
 		t.Fatal(e)
 	}
 }

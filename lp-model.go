@@ -77,7 +77,7 @@ func (m *LPModel) Solve() (LPSolution, error) {
 		&rowValue[0], &rowDual[0],
 		&colBasisStatus[0], &rowBasisStatus[0],
 		&modelStatus)
-	err = newHighsStatus(status, "Highs_lpCall", "Solve")
+	err = newCallStatus(status, "Highs_lpCall", "Solve")
 	if err != nil {
 		return soln, err
 	}
