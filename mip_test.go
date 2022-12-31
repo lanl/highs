@@ -14,24 +14,22 @@ import "testing"
 //	0 <= x_0 <= 4; 1 <= x_1
 func TestMinimalAPIMaxMIP(t *testing.T) {
 	// Prepare the model.
-	model := NewMIPModel()
-	model.SetMaximization(true)
-	offset := 3.0
-	model.SetOffset(offset)
-	colCosts := []float64{1.0, 1.0}
-	model.SetColumnCosts(colCosts)
-	model.SetColumnBounds([]float64{0.0, 1.0},
-		[]float64{4.0, 1.0e30})
-	model.SetRowBounds([]float64{-1.0e30, 5.0, 6.0},
-		[]float64{7.0, 15.0, 1.0e30})
-	model.SetCoefficients([]Nonzero{
+	var model MIPModel
+	model.Maximize = true
+	model.Offset = 3.0
+	model.ColCosts = []float64{1.0, 1.0}
+	model.ColLower = []float64{0.0, 1.0}
+	model.ColUpper = []float64{4.0, 1.0e30}
+	model.RowLower = []float64{-1.0e30, 5.0, 6.0}
+	model.RowUpper = []float64{7.0, 15.0, 1.0e30}
+	model.CoeffMatrix = []Nonzero{
 		{0, 1, 1.0},
 		{1, 0, 1.0},
 		{1, 1, 2.0},
 		{2, 0, 3.0},
 		{2, 1, 2.0},
-	})
-	model.SetVariableTypes([]VariableType{IntegerType, IntegerType})
+	}
+	model.VarTypes = []VariableType{IntegerType, IntegerType}
 
 	// Solve the model.
 	soln, err := model.Solve()

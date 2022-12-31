@@ -23,7 +23,7 @@ type Nonzero struct {
 // A BasisStatus represents the basis status of a row or column.
 type BasisStatus int
 
-// These are the values a BasisStatus accepts.
+// These are the values a BasisStatus accepts:
 const (
 	UnknownBasisStatus BasisStatus = iota
 	Lower
@@ -54,7 +54,7 @@ func convertHighsBasisStatus(hbs C.HighsInt) BasisStatus {
 // A ModelStatus represents the status of an attempt to solve a model.
 type ModelStatus int
 
-// These are the values a ModelStatus accepts.
+// These are the values a ModelStatus accepts:
 const (
 	UnknownModelStatus ModelStatus = iota
 	NotSet
@@ -112,67 +112,28 @@ func convertHighsModelStatus(hms C.HighsInt) ModelStatus {
 	}
 }
 
-// A commonModel represents fields common to many HiGHS models.
-type commonModel struct {
-	maximize    bool      // true=maximize; false=minimize
-	colCosts    []float64 // Column costs (i.e., the objective function)
-	offset      float64   // Objective-function offset
-	colLower    []float64 // Column lower bounds
-	colUpper    []float64 // Column upper bounds
-	rowLower    []float64 // Row lower bounds
-	rowUpper    []float64 // Row upper bounds
-	coeffMatrix []Nonzero // Sparse "A" matrix
+// A Model encapsulates fields common to many HiGHS models.  It should not be
+// used directly.
+type Model struct {
+	Maximize    bool      // true=maximize; false=minimize
+	ColCosts    []float64 // Column costs (i.e., the objective function itself)
+	Offset      float64   // Objective-function constant offset
+	ColLower    []float64 // Column lower bounds
+	ColUpper    []float64 // Column upper bounds
+	RowLower    []float64 // Row lower bounds
+	RowUpper    []float64 // Row upper bounds
+	CoeffMatrix []Nonzero // Sparse matrix of per-row variable coefficients
 }
 
-// prepareBounds replaces nil column or row bounds with infinities.
-func prepareBounds(lb, ub []float64) ([]float64, []float64) {
-	switch {
-	case lb == nil && ub == nil:
-		// No bounds were provided.
-	case lb == nil:
-		// Replace nil lower bounds with minus infinity.
-		mInf := math.Inf(-1)
-		lb = make([]float64, len(ub))
-		for i := range lb {
-			lb[i] = mInf
-		}
-	case ub == nil:
-		// Replace nil upper bounds with plus infinity.
-		pInf := math.Inf(1)
-		ub = make([]float64, len(lb))
-		for i := range ub {
-			ub[i] = pInf
-		}
-	case len(lb) != len(ub):
-		panic("different numbers of lower and upper bounds were provided")
-	}
-	return lb, ub
-}
-
-// SetRowBounds specifies a model's lower and upper row bounds.  If the
-// lower-bound argument is nil it is replaced with a slice of negative
-// infinities.  If the upper-bound argument is nil, it is replaced with a slice
-// of positive infinities.
-func (m *commonModel) SetRowBounds(lb, ub []float64) {
-	m.rowLower, m.rowUpper = prepareBounds(lb, ub)
-}
-
-// SetColumnBounds specifies a model's lower and upper column bounds.  If the
-// lower-bound argument is nil it is replaced with a slice of negative
-// infinities.  If the upper-bound argument is nil, it is replaced with a slice
-// of positive infinities.
-func (m *commonModel) SetColumnBounds(lb, ub []float64) {
-	m.colLower, m.colUpper = prepareBounds(lb, ub)
-}
-
-// SetCoefficients specifies a model's coefficient matrix in terms of its
-// nonzero entries.
-func (m *commonModel) SetCoefficients(nz []Nonzero) {
+// filterNonzeros sorts a list of Nonzero elements and removes duplicates.  It
+// serves as a helper function for nonzerosToCSR.
+func filterNonzeros(nz []Nonzero) ([]Nonzero, error) {
 	// Complain about negative indices.
 	for _, v := range nz {
 		if v.Row < 0 || v.Col < 0 {
-			panic(fmt.Sprintf("(%d, %d) is not a valid coordinate for a matrix coefficient",
-				v.Row, v.Col))
+			err := fmt.Errorf("(%d, %d) is not a valid coordinate for a matrix coefficient",
+				v.Row, v.Col)
+			return nil, err
 		}
 	}
 
@@ -197,51 +158,40 @@ func (m *commonModel) SetCoefficients(nz []Nonzero) {
 	})
 
 	// Elide duplicate entries, keeping the latest value.
-	m.coeffMatrix = make([]Nonzero, 0, len(sorted))
+	noDups := make([]Nonzero, 0, len(sorted))
 	for _, v := range sorted {
-		i := len(m.coeffMatrix)
+		i := len(noDups)
 		switch {
 		case i == 0:
 			// First element: always include.
-			m.coeffMatrix = append(m.coeffMatrix, v)
-		case v.Row == m.coeffMatrix[i-1].Row && v.Col == m.coeffMatrix[i-1].Col:
+			noDups = append(noDups, v)
+		case v.Row == noDups[i-1].Row && v.Col == noDups[i-1].Col:
 			// Duplicate coordinate: retain the later value.
-			m.coeffMatrix[i-1].Value = v.Value
+			noDups[i-1].Value = v.Value
 		default:
 			// New coordinate.
-			m.coeffMatrix = append(m.coeffMatrix, v)
+			noDups = append(noDups, v)
 		}
 	}
+	return noDups, nil
 }
 
-// SetMaximization tells a model to maximize (true) or minimize (false) its
-// objective function.
-func (m *commonModel) SetMaximization(max bool) {
-	m.maximize = max
-}
-
-// SetColumnCosts specifies a model's column costs (i.e., its objective
-// function).
-func (m *commonModel) SetColumnCosts(cs []float64) {
-	m.colCosts = cs
-}
-
-// SetOffset specifies a constant offset for the objective function.
-func (m *commonModel) SetOffset(o float64) {
-	m.offset = o
-}
-
-// makeSparseMatrix converts coeffMatrix to a row-wise sparse-matrix
+// nonzerosToCSR converts a list of Nonzero elements to a compressed sparse row
 // representation in the form of a set of C vectors accepted by the HiGHS APIs.
-func (m *commonModel) makeSparseMatrix() (start, index []C.HighsInt, value []C.double) {
+func nonzerosToCSR(nz []Nonzero) (start, index []C.HighsInt, value []C.double, err error) {
 	// Allocate memory for all of our return vectors.
-	start = make([]C.HighsInt, 0, len(m.coeffMatrix))
-	index = make([]C.HighsInt, 0, len(m.coeffMatrix))
-	value = make([]C.double, 0, len(m.coeffMatrix))
+	var nonzeros []Nonzero
+	nonzeros, err = filterNonzeros(nz)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	start = make([]C.HighsInt, 0, len(nonzeros))
+	index = make([]C.HighsInt, 0, len(nonzeros))
+	value = make([]C.double, 0, len(nonzeros))
 
 	// Construct slices of C types.
 	prevRow := -1
-	for _, nz := range m.coeffMatrix {
+	for _, nz := range nonzeros {
 		if nz.Row > prevRow {
 			start = append(start, C.HighsInt(len(value)))
 			prevRow = nz.Row
@@ -249,18 +199,18 @@ func (m *commonModel) makeSparseMatrix() (start, index []C.HighsInt, value []C.d
 		index = append(index, C.HighsInt(nz.Col))
 		value = append(value, C.double(nz.Value))
 	}
-	return start, index, value
+	return start, index, value, nil
 }
 
 // replaceNilSlices infers the number of rows and columns in a model and
 // replaces nil slices with default-valued slices of the appropriate size.  It
-// returns the number of rows, the number of columns, and a success flag.  The
-// success flag is false if the number of columns is inconsistent across
-// non-nil fields.
-func (m *commonModel) replaceNilSlices() (int, int, bool) {
+// returns the number of rows, the number of columns, a modified copy of the
+// Model, and a success flag.  The success flag is false if the number of
+// columns is inconsistent across non-nil fields.
+func (m *Model) replaceNilSlices() (int, int, *Model, bool) {
 	// Infer the number of rows and columns in the model.
 	nc, nr := 0, 0
-	for _, nz := range m.coeffMatrix {
+	for _, nz := range m.CoeffMatrix {
 		if nz.Row >= nr {
 			nr = nz.Row + 1
 		}
@@ -268,73 +218,76 @@ func (m *commonModel) replaceNilSlices() (int, int, bool) {
 			nc = nz.Col + 1
 		}
 	}
-	if len(m.colCosts) > nc {
-		nc = len(m.colCosts)
+	if len(m.ColCosts) > nc {
+		nc = len(m.ColCosts)
 	}
-	if len(m.colLower) > nc {
-		nc = len(m.colLower)
+	if len(m.ColLower) > nc {
+		nc = len(m.ColLower)
 	}
-	if len(m.colUpper) > nc {
-		nc = len(m.colUpper)
+	if len(m.ColUpper) > nc {
+		nc = len(m.ColUpper)
 	}
-	if len(m.rowLower) > nr {
-		nr = len(m.rowLower)
+	if len(m.RowLower) > nr {
+		nr = len(m.RowLower)
 	}
-	if len(m.rowUpper) > nr {
-		nr = len(m.rowUpper)
+	if len(m.RowUpper) > nr {
+		nr = len(m.RowUpper)
 	}
 
+	// Make a copy of the model so we don't modify the original.
+	mc := *m
+
 	// Replace nil slices with slices of the appropriate size.
-	if m.colCosts == nil {
-		m.colCosts = make([]float64, nc)
+	if mc.ColCosts == nil {
+		mc.ColCosts = make([]float64, nc)
 	}
 	mInf, pInf := math.Inf(-1), math.Inf(1)
-	if m.colLower == nil {
-		m.colLower = make([]float64, nc)
-		for i := range m.colLower {
-			m.colLower[i] = mInf
+	if mc.ColLower == nil {
+		mc.ColLower = make([]float64, nc)
+		for i := range mc.ColLower {
+			mc.ColLower[i] = mInf
 		}
 	}
-	if m.colUpper == nil {
-		m.colUpper = make([]float64, nc)
-		for i := range m.colUpper {
-			m.colUpper[i] = pInf
+	if mc.ColUpper == nil {
+		mc.ColUpper = make([]float64, nc)
+		for i := range mc.ColUpper {
+			mc.ColUpper[i] = pInf
 		}
 	}
-	if m.rowLower == nil {
-		m.rowLower = make([]float64, nr)
-		for i := range m.rowLower {
-			m.rowLower[i] = mInf
+	if mc.RowLower == nil {
+		mc.RowLower = make([]float64, nr)
+		for i := range mc.RowLower {
+			mc.RowLower[i] = mInf
 		}
 	}
-	if m.rowUpper == nil {
-		m.rowUpper = make([]float64, nr)
-		for i := range m.rowUpper {
-			m.rowUpper[i] = pInf
+	if mc.RowUpper == nil {
+		mc.RowUpper = make([]float64, nr)
+		for i := range mc.RowUpper {
+			mc.RowUpper[i] = pInf
 		}
 	}
 
 	// Complain if any slice is the wrong size.
 	switch {
-	case len(m.colLower) != nc:
-		return 0, 0, false
-	case len(m.colLower) != nc, len(m.colUpper) != nc:
-		return 0, 0, false
-	case len(m.rowLower) != nr, len(m.rowUpper) != nr:
-		return 0, 0, false
+	case len(mc.ColLower) != nc:
+		return 0, 0, nil, false
+	case len(mc.ColLower) != nc, len(mc.ColUpper) != nc:
+		return 0, 0, nil, false
+	case len(mc.RowLower) != nr, len(mc.RowUpper) != nr:
+		return 0, 0, nil, false
 	}
 
 	// Return the row and column sizes.
-	return nr, nc, true
+	return nr, nc, &mc, true
 }
 
 // AddDenseRow is a convenience function that lets the caller add to the model
 // a single row's lower bound, matrix coefficients (specified densely, but
 // stored sparsely), and upper bound.
-func (m *commonModel) AddDenseRow(lb float64, coeffs []float64, ub float64) {
-	r := len(m.rowLower)
-	m.rowLower = append(m.rowLower, lb)
-	m.rowUpper = append(m.rowUpper, ub)
+func (m *Model) AddDenseRow(lb float64, coeffs []float64, ub float64) {
+	r := len(m.RowLower)
+	m.RowLower = append(m.RowLower, lb)
+	m.RowUpper = append(m.RowUpper, ub)
 	for c, v := range coeffs {
 		if v == 0.0 {
 			continue
@@ -344,6 +297,6 @@ func (m *commonModel) AddDenseRow(lb float64, coeffs []float64, ub float64) {
 			Col:   c,
 			Value: v,
 		}
-		m.coeffMatrix = append(m.coeffMatrix, nz)
+		m.CoeffMatrix = append(m.CoeffMatrix, nz)
 	}
 }

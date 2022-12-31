@@ -5,6 +5,7 @@ package highs
 
 import (
 	"fmt"
+	"math"
 	"runtime"
 	"unsafe"
 )
@@ -205,12 +206,40 @@ func (m *RawModel) SetOffset(o float64) error {
 	return newHighsStatus(status, "Highs_changeObjectiveOffset", "SetOffset")
 }
 
+// prepareBounds replaces nil column or row bounds with infinities.
+func prepareBounds(lb, ub []float64) ([]float64, []float64, error) {
+	switch {
+	case lb == nil && ub == nil:
+		// No bounds were provided.
+	case lb == nil:
+		// Replace nil lower bounds with minus infinity.
+		mInf := math.Inf(-1)
+		lb = make([]float64, len(ub))
+		for i := range lb {
+			lb[i] = mInf
+		}
+	case ub == nil:
+		// Replace nil upper bounds with plus infinity.
+		pInf := math.Inf(1)
+		ub = make([]float64, len(lb))
+		for i := range ub {
+			ub[i] = pInf
+		}
+	case len(lb) != len(ub):
+		return nil, nil, fmt.Errorf("different numbers of lower and upper bounds were provided (%d vs. %d)", len(lb), len(ub))
+	}
+	return lb, ub, nil
+}
+
 // AddColumnBounds appends to a model's lower and upper column bounds.  If the
 // lower-bound argument is nil it is replaced with a slice of negative
 // infinities.  If the upper-bound argument is nil, it is replaced with a slice
 // of positive infinities.
 func (m *RawModel) AddColumnBounds(lb, ub []float64) error {
-	colLower, colUpper := prepareBounds(lb, ub)
+	colLower, colUpper, err := prepareBounds(lb, ub)
+	if err != nil {
+		return err
+	}
 	lower := convertSlice[C.double, float64](colLower)
 	upper := convertSlice[C.double, float64](colUpper)
 	status := C.Highs_addVars(m.obj, C.HighsInt(len(lower)),
@@ -281,7 +310,7 @@ func (m *RawModel) SetIntegrality(ts []VariableType) error {
 // and provides methods to retrieve additional information.
 type RawSolution struct {
 	obj          unsafe.Pointer // Underlying highs opaque data type
-	Status       ModelStatus    // Status of the LP solve
+	Status       ModelStatus    // Status of the solution
 	ColumnPrimal []float64      // Primal column solution
 	RowPrimal    []float64      // Primal row solution
 	ColumnDual   []float64      // Dual column solution

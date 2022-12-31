@@ -10,19 +10,14 @@ import "C"
 
 // A MIPModel represents a HiGHS mixed-integer programming model.
 type MIPModel struct {
-	commonModel
-	varTypes []VariableType // Type of each model variable
-}
-
-// NewMIPModel allocates and returns an empty mixed-integer programming model.
-func NewMIPModel() *MIPModel {
-	return &MIPModel{}
+	Model
+	VarTypes []VariableType // Type of each model variable
 }
 
 // A VariableType indicates the type of a model variable.
 type VariableType int
 
-// These are the values a VariableType accepts.
+// These are the values a VariableType accepts:
 const (
 	ContinuousType VariableType = iota
 	IntegerType
@@ -41,11 +36,6 @@ var variableTypeToHighs = []C.HighsInt{
 	C.kHighsVarTypeImplicitInteger,
 }
 
-// SetVariableTypes sets the type of each variable in the model.
-func (m *MIPModel) SetVariableTypes(vt []VariableType) {
-	m.varTypes = vt
-}
-
 // A MIPSolution encapsulates all the values returned by HiGHS's mixed-integer
 // programming solver.
 type MIPSolution struct {
@@ -60,13 +50,16 @@ func (m *MIPModel) Solve() (MIPSolution, error) {
 	var soln MIPSolution
 
 	// Find the model's dimensions.
-	nr, nc, ok := m.replaceNilSlices()
+	nr, nc, cm, ok := m.replaceNilSlices()
 	if !ok {
 		return soln, fmt.Errorf("model has inconsistent dimensions")
 	}
 
 	// Convert the coefficient matrix to HiGHS format.
-	aStart, aIndex, aValue := m.makeSparseMatrix()
+	aStart, aIndex, aValue, err := nonzerosToCSR(m.CoeffMatrix)
+	if err != nil {
+		return soln, err
+	}
 
 	// Convert other model parameters from Go data types to C data types.
 	numCol := C.HighsInt(nc)
@@ -74,17 +67,17 @@ func (m *MIPModel) Solve() (MIPSolution, error) {
 	numNZ := C.HighsInt(len(aValue))
 	aFormat := C.kHighsMatrixFormatRowwise // Column-wise is not currently supported.
 	sense := C.kHighsObjSenseMinimize
-	if m.maximize {
+	if cm.Maximize {
 		sense = C.kHighsObjSenseMaximize
 	}
-	offset := C.double(m.offset)
-	colCost := convertSlice[C.double, float64](m.colCosts)
-	colLower := convertSlice[C.double, float64](m.colLower)
-	colUpper := convertSlice[C.double, float64](m.colUpper)
-	rowLower := convertSlice[C.double, float64](m.rowLower)
-	rowUpper := convertSlice[C.double, float64](m.rowUpper)
+	offset := C.double(cm.Offset)
+	colCost := convertSlice[C.double, float64](cm.ColCosts)
+	colLower := convertSlice[C.double, float64](cm.ColLower)
+	colUpper := convertSlice[C.double, float64](cm.ColUpper)
+	rowLower := convertSlice[C.double, float64](cm.RowLower)
+	rowUpper := convertSlice[C.double, float64](cm.RowUpper)
 	integrality := make([]C.HighsInt, nc) // Defaults to ContinuousType
-	for i, vt := range m.varTypes {
+	for i, vt := range m.VarTypes {
 		integrality[i] = variableTypeToHighs[vt]
 	}
 
@@ -102,7 +95,7 @@ func (m *MIPModel) Solve() (MIPSolution, error) {
 		&integrality[0],
 		&colValue[0], &rowValue[0],
 		&modelStatus)
-	err := newHighsStatus(status, "Highs_mipCall", "Solve")
+	err = newHighsStatus(status, "Highs_mipCall", "Solve")
 	if err != nil {
 		return soln, err
 	}
@@ -113,9 +106,9 @@ func (m *MIPModel) Solve() (MIPSolution, error) {
 	soln.RowPrimal = convertSlice[float64, C.double](rowValue)
 
 	// Compute the objective value as a convenience for the user.
-	soln.Objective = m.offset
+	soln.Objective = cm.Offset
 	for i, cp := range soln.ColumnPrimal {
-		soln.Objective += cp * m.colCosts[i]
+		soln.Objective += cp * cm.ColCosts[i]
 	}
 	return soln, nil
 }

@@ -10,12 +10,7 @@ import "C"
 
 // An LPModel represents a HiGHS linear-programming model.
 type LPModel struct {
-	commonModel
-}
-
-// NewLPModel allocates and returns an empty linear-programming model.
-func NewLPModel() *LPModel {
-	return &LPModel{}
+	Model
 }
 
 // An LPSolution encapsulates all the values returned by HiGHS's
@@ -36,13 +31,16 @@ func (m *LPModel) Solve() (LPSolution, error) {
 	var soln LPSolution
 
 	// Find the model's dimensions.
-	nr, nc, ok := m.replaceNilSlices()
+	nr, nc, cm, ok := m.replaceNilSlices()
 	if !ok {
 		return soln, fmt.Errorf("model has inconsistent dimensions")
 	}
 
 	// Convert the coefficient matrix to HiGHS format.
-	aStart, aIndex, aValue := m.makeSparseMatrix()
+	aStart, aIndex, aValue, err := nonzerosToCSR(m.CoeffMatrix)
+	if err != nil {
+		return soln, err
+	}
 
 	// Convert other model parameters from Go data types to C data types.
 	numCol := C.HighsInt(nc)
@@ -50,15 +48,15 @@ func (m *LPModel) Solve() (LPSolution, error) {
 	numNZ := C.HighsInt(len(aValue))
 	aFormat := C.kHighsMatrixFormatRowwise // Column-wise is not currently supported.
 	sense := C.kHighsObjSenseMinimize
-	if m.maximize {
+	if cm.Maximize {
 		sense = C.kHighsObjSenseMaximize
 	}
-	offset := C.double(m.offset)
-	colCost := convertSlice[C.double, float64](m.colCosts)
-	colLower := convertSlice[C.double, float64](m.colLower)
-	colUpper := convertSlice[C.double, float64](m.colUpper)
-	rowLower := convertSlice[C.double, float64](m.rowLower)
-	rowUpper := convertSlice[C.double, float64](m.rowUpper)
+	offset := C.double(cm.Offset)
+	colCost := convertSlice[C.double, float64](cm.ColCosts)
+	colLower := convertSlice[C.double, float64](cm.ColLower)
+	colUpper := convertSlice[C.double, float64](cm.ColUpper)
+	rowLower := convertSlice[C.double, float64](cm.RowLower)
+	rowUpper := convertSlice[C.double, float64](cm.RowUpper)
 
 	// Allocate storage for return values.
 	colValue := make([]C.double, nc)
@@ -79,7 +77,7 @@ func (m *LPModel) Solve() (LPSolution, error) {
 		&rowValue[0], &rowDual[0],
 		&colBasisStatus[0], &rowBasisStatus[0],
 		&modelStatus)
-	err := newHighsStatus(status, "Highs_lpCall", "Solve")
+	err = newHighsStatus(status, "Highs_lpCall", "Solve")
 	if err != nil {
 		return soln, err
 	}
@@ -100,9 +98,9 @@ func (m *LPModel) Solve() (LPSolution, error) {
 	}
 
 	// Compute the objective value as a convenience for the user.
-	soln.Objective = m.offset
+	soln.Objective = cm.Offset
 	for i, cp := range soln.ColumnPrimal {
-		soln.Objective += cp * m.colCosts[i]
+		soln.Objective += cp * cm.ColCosts[i]
 	}
 	return soln, nil
 }

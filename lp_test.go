@@ -8,15 +8,18 @@ import "testing"
 // index, and value slices.
 func TestMakeSparseMatrix(t *testing.T) {
 	// Construct a sparse matrix.
-	model := NewLPModel()
-	model.SetCoefficients([]Nonzero{
+	var model LPModel
+	model.CoeffMatrix = []Nonzero{
 		{0, 1, 1.0},
 		{1, 0, 1.0},
 		{1, 1, 2.0},
 		{2, 0, 3.0},
 		{2, 1, 2.0},
-	})
-	start, index, value := model.makeSparseMatrix()
+	}
+	start, index, value, err := nonzerosToCSR(model.CoeffMatrix)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Validate the three slices.
 	compSlices(t, "start", start, []int{0, 1, 3})
@@ -34,23 +37,21 @@ func TestMakeSparseMatrix(t *testing.T) {
 //	0 <= x_0 <= 4; 1 <= x_1
 func TestMinimalAPIMin(t *testing.T) {
 	// Prepare the model.
-	model := NewLPModel()
-	model.SetMaximization(false) // Unnecessary but included for testing
-	offset := 3.0
-	model.SetOffset(offset)
-	colCosts := []float64{1.0, 1.0}
-	model.SetColumnCosts(colCosts)
-	model.SetColumnBounds([]float64{0.0, 1.0},
-		[]float64{4.0, 1.0e30})
-	model.SetRowBounds([]float64{-1.0e30, 5.0, 6.0},
-		[]float64{7.0, 15.0, 1.0e30})
-	model.SetCoefficients([]Nonzero{
+	var model LPModel
+	model.Maximize = false // Unnecessary but included for testing
+	model.Offset = 3.0
+	model.ColCosts = []float64{1.0, 1.0}
+	model.ColLower = []float64{0.0, 1.0}
+	model.ColUpper = []float64{4.0, 1.0e30}
+	model.RowLower = []float64{-1.0e30, 5.0, 6.0}
+	model.RowUpper = []float64{7.0, 15.0, 1.0e30}
+	model.CoeffMatrix = []Nonzero{
 		{0, 1, 1.0},
 		{1, 0, 1.0},
 		{1, 1, 2.0},
 		{2, 0, 3.0},
 		{2, 1, 2.0},
-	})
+	}
 
 	// Solve the model.
 	soln, err := model.Solve()
@@ -85,23 +86,21 @@ func TestMinimalAPIMin(t *testing.T) {
 //	0 <= x_0 <= 4; 1 <= x_1
 func TestMinimalAPIMax(t *testing.T) {
 	// Prepare the model.
-	model := NewLPModel()
-	model.SetMaximization(true)
-	offset := 3.0
-	model.SetOffset(offset)
-	colCosts := []float64{1.0, 1.0}
-	model.SetColumnCosts(colCosts)
-	model.SetColumnBounds([]float64{0.0, 1.0},
-		[]float64{4.0, 1.0e30})
-	model.SetRowBounds([]float64{-1.0e30, 5.0, 6.0},
-		[]float64{7.0, 15.0, 1.0e30})
-	model.SetCoefficients([]Nonzero{
+	var model LPModel
+	model.Maximize = true
+	model.Offset = 3.0
+	model.ColCosts = []float64{1.0, 1.0}
+	model.ColLower = []float64{0.0, 1.0}
+	model.ColUpper = []float64{4.0, 1.0e30}
+	model.RowLower = []float64{-1.0e30, 5.0, 6.0}
+	model.RowUpper = []float64{7.0, 15.0, 1.0e30}
+	model.CoeffMatrix = []Nonzero{
 		{0, 1, 1.0},
 		{1, 0, 1.0},
 		{1, 1, 2.0},
 		{2, 0, 3.0},
 		{2, 1, 2.0},
-	})
+	}
 
 	// Solve the model.
 	soln, err := model.Solve()
@@ -130,14 +129,12 @@ func TestMinimalAPIMax(t *testing.T) {
 // AddDenseRow convenience method.
 func TestAddDenseRow(t *testing.T) {
 	// Prepare the model.
-	model := NewLPModel()
-	model.SetMaximization(false) // Unnecessary but included for testing
-	offset := 3.0
-	model.SetOffset(offset)
-	colCosts := []float64{1.0, 1.0}
-	model.SetColumnCosts(colCosts)
-	model.SetColumnBounds([]float64{0.0, 1.0},
-		[]float64{4.0, 1.0e30})
+	var model LPModel
+	model.Maximize = false // Unnecessary but included for testing
+	model.Offset = 3.0
+	model.ColCosts = []float64{1.0, 1.0}
+	model.ColLower = []float64{0.0, 1.0}
+	model.ColUpper = []float64{4.0, 1.0e30}
 	model.AddDenseRow(-1.0e30, []float64{0.0, 1.0}, 7.0)
 	model.AddDenseRow(5.0, []float64{1.0, 2.0}, 15.0)
 	model.AddDenseRow(6.0, []float64{3.0, 2.0}, 1.0e30)
