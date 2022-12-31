@@ -161,3 +161,28 @@ func TestAddDenseRow(t *testing.T) {
 		t.Fatalf("objective value was %.2f but should have been 5.75", soln.Objective)
 	}
 }
+
+// TestImplicitColumnBounds tests that column bounds of (-inf, +inf) can be
+// left unspecified.  It solves the following problem:
+//
+//	Satisfy 23 <= x_0 + x_1 <= 23
+//	        17 <= x_0 - x_1 <= 17
+func TestImplicitColumnBounds(t *testing.T) {
+	// Prepare the model.
+	var model LPModel
+	model.AddDenseRow(23.0, []float64{1.0, 1.0}, 23.0)
+	model.AddDenseRow(17.0, []float64{1.0, -1.0}, 17.0)
+
+	// Solve the model.
+	soln, err := model.Solve()
+	if err != nil {
+		t.Fatalf("solve failed (%s)", err)
+	}
+	if soln.Status != Optimal {
+		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+	}
+
+	// Confirm that each field is as expected.
+	compSlices(t, "ColumnPrimal", soln.ColumnPrimal, []float64{20.0, 3.0})
+	compSlices(t, "RowPrimal", soln.RowPrimal, []float64{23.0, 17.0})
+}
