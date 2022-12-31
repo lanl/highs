@@ -125,15 +125,27 @@ type Model struct {
 	CoeffMatrix []Nonzero // Sparse matrix of per-row variable coefficients
 }
 
-// filterNonzeros sorts a list of Nonzero elements and removes duplicates.  It
-// serves as a helper function for nonzerosToCSR.
-func filterNonzeros(nz []Nonzero) ([]Nonzero, error) {
+// filterNonzeros sorts a list of Nonzero elements, removes duplicates, and, if
+// tri is true, rejects lower-triangular elements.  filterNonzeros serves as a
+// helper function for nonzerosToCSR.
+func filterNonzeros(nz []Nonzero, tri bool) ([]Nonzero, error) {
 	// Complain about negative indices.
 	for _, v := range nz {
 		if v.Row < 0 || v.Col < 0 {
 			err := fmt.Errorf("(%d, %d) is not a valid coordinate for a matrix coefficient",
 				v.Row, v.Col)
 			return nil, err
+		}
+	}
+
+	// Optionally complain about lower-triangular indices.
+	if tri {
+		for _, v := range nz {
+			if v.Row > v.Col {
+				err := fmt.Errorf("(%d, %d) is not a valid upper-triangular coordinate for a matrix coefficient",
+					v.Row, v.Col)
+				return nil, err
+			}
 		}
 	}
 
@@ -178,10 +190,10 @@ func filterNonzeros(nz []Nonzero) ([]Nonzero, error) {
 
 // nonzerosToCSR converts a list of Nonzero elements to a compressed sparse row
 // representation in the form of a set of C vectors accepted by the HiGHS APIs.
-func nonzerosToCSR(nz []Nonzero) (start, index []C.HighsInt, value []C.double, err error) {
+func nonzerosToCSR(nz []Nonzero, tri bool) (start, index []C.HighsInt, value []C.double, err error) {
 	// Allocate memory for all of our return vectors.
 	var nonzeros []Nonzero
-	nonzeros, err = filterNonzeros(nz)
+	nonzeros, err = filterNonzeros(nz, tri)
 	if err != nil {
 		return nil, nil, nil, err
 	}

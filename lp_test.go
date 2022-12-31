@@ -18,7 +18,7 @@ func TestMakeSparseMatrix(t *testing.T) {
 		{2, 0, 3.0},
 		{2, 1, 2.0},
 	}
-	start, index, value, err := nonzerosToCSR(model.CoeffMatrix)
+	start, index, value, err := nonzerosToCSR(model.CoeffMatrix, false)
 	if err != nil {
 		t.Fatal(err)
 	}

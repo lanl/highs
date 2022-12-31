@@ -45,7 +45,7 @@ func (m *MIPModel) ToRawModel() (*RawModel, error) {
 	}
 
 	// Convert the coefficient matrix to HiGHS format.
-	aStart, aIndex, aValue, err := nonzerosToCSR(m.CoeffMatrix)
+	aStart, aIndex, aValue, err := nonzerosToCSR(m.CoeffMatrix, false)
 	if err != nil {
 		return &RawModel{}, err
 	}
@@ -123,7 +123,7 @@ func (m *MIPModel) Solve() (MIPSolution, error) {
 	}
 
 	// Convert the coefficient matrix to HiGHS format.
-	aStart, aIndex, aValue, err := nonzerosToCSR(m.CoeffMatrix)
+	aStart, aIndex, aValue, err := nonzerosToCSR(m.CoeffMatrix, false)
 	if err != nil {
 		return soln, err
 	}
