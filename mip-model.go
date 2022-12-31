@@ -36,6 +36,73 @@ var variableTypeToHighs = []C.HighsInt{
 	C.kHighsVarTypeImplicitInteger,
 }
 
+// ToRawModel converts a MIPModel to a RawModel.
+func (m *MIPModel) ToRawModel() (*RawModel, error) {
+	// Find the model's dimensions.
+	nr, nc, cm, ok := m.replaceNilSlices()
+	if !ok {
+		return &RawModel{}, fmt.Errorf("model has inconsistent dimensions")
+	}
+
+	// Convert the coefficient matrix to HiGHS format.
+	aStart, aIndex, aValue, err := nonzerosToCSR(m.CoeffMatrix)
+	if err != nil {
+		return &RawModel{}, err
+	}
+
+	// Convert other model parameters from Go data types to C data types.
+	numCol := C.HighsInt(nc)
+	numRow := C.HighsInt(nr)
+	numNZ := C.HighsInt(len(aValue))
+	aFormat := C.kHighsMatrixFormatRowwise // Column-wise is not currently supported.
+	sense := C.kHighsObjSenseMinimize
+	if cm.Maximize {
+		sense = C.kHighsObjSenseMaximize
+	}
+	offset := C.double(cm.Offset)
+	colCost := convertSlice[C.double, float64](cm.ColCosts)
+	colLower := convertSlice[C.double, float64](cm.ColLower)
+	colUpper := convertSlice[C.double, float64](cm.ColUpper)
+	rowLower := convertSlice[C.double, float64](cm.RowLower)
+	rowUpper := convertSlice[C.double, float64](cm.RowUpper)
+	integrality := make([]C.HighsInt, nc) // Defaults to ContinuousType
+	for i, vt := range m.VarTypes {
+		integrality[i] = variableTypeToHighs[vt]
+	}
+
+	// Construct an emtpy raw model.  Turn off output, which is out of
+	// place in a method like ToRawModel.
+	rm := NewRawModel()
+	outFlag, err := rm.GetBoolOption("output_flag") // Presumably "true"
+	if err != nil {
+		return &RawModel{}, err
+	}
+	err = rm.SetBoolOption("output_flag", false)
+	if err != nil {
+		return &RawModel{}, err
+	}
+
+	// Invoke Highs_passMip to populate a highs object.
+	status := C.Highs_passMip(rm.obj, numCol, numRow, numNZ,
+		aFormat, sense,
+		offset, &colCost[0],
+		&colLower[0], &colUpper[0],
+		&rowLower[0], &rowUpper[0],
+		&aStart[0], &aIndex[0], &aValue[0],
+		&integrality[0])
+	err = newCallStatus(status, "Highs_passMip", "ToRawModel")
+	if err != nil {
+		return &RawModel{}, err
+	}
+
+	// Restore the previous value of output_flag.
+	err = rm.SetBoolOption("output_flag", outFlag)
+	if err != nil {
+		return &RawModel{}, err
+	}
+	return rm, nil
+}
+
 // A MIPSolution encapsulates all the values returned by HiGHS's mixed-integer
 // programming solver.
 type MIPSolution struct {

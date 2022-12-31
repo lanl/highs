@@ -2,7 +2,9 @@
 
 package highs
 
-import "testing"
+import (
+	"testing"
+)
 
 // TestMakeSparseMatrix tests the conversion of a slice of Nonzeros to start,
 // index, and value slices.
@@ -185,4 +187,36 @@ func TestImplicitColumnBounds(t *testing.T) {
 	// Confirm that each field is as expected.
 	compSlices(t, "ColumnPrimal", soln.ColumnPrimal, []float64{20.0, 3.0})
 	compSlices(t, "RowPrimal", soln.RowPrimal, []float64{23.0, 17.0})
+}
+
+// TestLPModelToRawModel sets up an LPModel, converts it to a RawModel, and
+// solves it.  We use the following test problem:
+//
+//	Satisfy 1 <= x_0 - x_1 <= 1
+//	        5 <= x_0 + x_1 <= 5
+func TestLPModelToRawModel(t *testing.T) {
+	// Prepare the model.
+	var model LPModel
+	model.AddDenseRow(1.0, []float64{1.0, -1.0}, 1.0)
+	model.AddDenseRow(5.0, []float64{1.0, 1.0}, 5.0)
+
+	// Convert the LPModel to a RawModel.
+	raw, err := model.ToRawModel()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkErr(t, raw.SetBoolOption("output_flag", false))
+
+	// Solve the model.
+	soln, err := raw.Solve()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if soln.Status != Optimal {
+		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+	}
+
+	// Confirm that each field is as expected.
+	compSlices(t, "ColumnPrimal", soln.ColumnPrimal, []float64{3.0, 2.0})
+	compSlices(t, "RowPrimal", soln.RowPrimal, []float64{1.0, 5.0})
 }

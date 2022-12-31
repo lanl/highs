@@ -49,3 +49,36 @@ func TestMinimalAPIMaxMIP(t *testing.T) {
 		t.Fatalf("objective value was %d but should have been 12", int(soln.Objective))
 	}
 }
+
+// TestMIPModelToRawModel sets up an MIPModel, converts it to a RawModel, and
+// solves it.  We use the following test problem:
+//
+//	Satisfy 1 <= x_0 - x_1 <= 1
+//	        5 <= x_0 + x_1 <= 5
+func TestMIPModelToRawModel(t *testing.T) {
+	// Prepare the model.
+	var model MIPModel
+	model.AddDenseRow(1.0, []float64{1.0, -1.0}, 1.0)
+	model.AddDenseRow(5.0, []float64{1.0, 1.0}, 5.0)
+	model.VarTypes = []VariableType{IntegerType, IntegerType}
+
+	// Convert the MIPModel to a RawModel.
+	raw, err := model.ToRawModel()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkErr(t, raw.SetBoolOption("output_flag", false))
+
+	// Solve the model.
+	soln, err := raw.Solve()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if soln.Status != Optimal {
+		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+	}
+
+	// Confirm that each field is as expected.
+	compSlices(t, "ColumnPrimal", soln.ColumnPrimal, []float64{3.0, 2.0})
+	compSlices(t, "RowPrimal", soln.RowPrimal, []float64{1.0, 5.0})
+}
