@@ -44,7 +44,11 @@ func (m *QPModel) Solve() (QPSolution, error) {
 	}
 
 	// Convert the Hessian matrix to HiGHS format.
-	qStart, qIndex, qValue, err := nonzerosToCSR(m.HessianMatrix, true)
+	hessian, err := filterNonzeros(m.HessianMatrix, true) // Needed below
+	if err != nil {
+		return soln, err
+	}
+	qStart, qIndex, qValue, err := nonzerosToCSR(hessian, true)
 	if err != nil {
 		return soln, err
 	}
@@ -108,9 +112,19 @@ func (m *QPModel) Solve() (QPSolution, error) {
 	}
 
 	// Compute the objective value as a convenience for the user.
-	soln.Objective = cm.Offset
+	soln.Objective = cm.Offset // Constant term
 	for i, cp := range soln.ColumnPrimal {
+		// Linear terms
 		soln.Objective += cp * cm.ColCosts[i]
+	}
+	for _, nz := range hessian {
+		// Quadratic terms
+		r, c := nz.Row, nz.Col
+		v := soln.ColumnPrimal[r] * soln.ColumnPrimal[c] * nz.Value / 2.0
+		if r != c {
+			v *= 2.0
+		}
+		soln.Objective += v
 	}
 	return soln, nil
 }

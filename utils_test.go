@@ -4,6 +4,7 @@ package highs
 
 import (
 	"errors"
+	"math"
 	"testing"
 )
 
@@ -17,6 +18,15 @@ func compSlices[AType, EType numeric](t *testing.T, name string, act []AType, ex
 			t.Fatalf("%s: expected %v but observed %v", name, exp, act)
 		}
 	}
+}
+
+// roundFloats rounds a list of floats to a given precision.
+func roundFloats(e float64, xs []float64) []float64 {
+	rs := make([]float64, len(xs))
+	for i, x := range xs {
+		rs[i] = math.Round(x/e) * e
+	}
+	return rs
 }
 
 // checkErr calls another function and aborts the test if it returns a non-nil
