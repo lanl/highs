@@ -109,4 +109,10 @@ HighsInt Highs_passMip(void* highs, const HighsInt num_col,
                        const HighsInt* a_start, const HighsInt* a_index,
                        const double* a_value, const HighsInt* integrality);
 
+extern
+HighsInt Highs_passHessian(void* highs, const HighsInt dim,
+                           const HighsInt num_nz, const HighsInt format,
+                           const HighsInt* start, const HighsInt* index,
+                           const double* value);
+
 #endif

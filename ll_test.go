@@ -3,6 +3,7 @@
 package highs
 
 import (
+	"math"
 	"os"
 	"testing"
 )
@@ -183,5 +184,45 @@ func TestReadModel(t *testing.T) {
 	err = os.Remove(fname)
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestFullAPIQPMin performs the same test as TestMinimalAPIQPMin but
+// using the low-level API:
+//
+//	minimize -x_2 - 3x_3 + (1/2)(2x_1^2 - 2x_1x_3 + 0.2x_2^2 + 2x_3^2)
+//
+//	subject to x_1 + x_3 <= 2; x>=0
+func TestFullAPIQPMin(t *testing.T) {
+	// Prepare the model.
+	model := NewRawModel()
+	checkErr(t, model.SetBoolOption("output_flag", false))
+	pInf := math.Inf(1)
+	checkErr(t, model.AddColumnBounds([]float64{0.0, 0.0, 0.0},
+		[]float64{pInf, pInf, pInf}))
+	checkErr(t, model.SetColumnCosts([]float64{0.0, -1.0, -3.0}))
+	checkErr(t, model.AddCompSparseRows([]float64{math.Inf(-1)},
+		[]int{0}, []int{0, 2}, []float64{1.0, 1.0},
+		[]float64{2.0}))
+	checkErr(t, model.AddCompSparseHessian([]int{0, 2, 3},
+		[]int{0, 2, 1, 2},
+		[]float64{2.0, -1.0, 0.2, 2.0}))
+
+	// Solve the model.
+	soln, err := model.Solve()
+	if err != nil {
+		t.Fatalf("solve failed (%s)", err)
+	}
+	if soln.Status != Optimal {
+		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+	}
+
+	// Confirm that each field is as expected.
+	primal := roundFloats(0.001, soln.ColumnPrimal)
+	compSlices(t, "ColumnPrimal", primal, []float64{0.5, 5.0, 1.5})
+
+	// Validate the objective value.
+	if math.Round(soln.Objective/0.001)*0.001 != -5.25 {
+		t.Fatalf("objective value was %.2f but should have been -5.25", soln.Objective)
 	}
 }

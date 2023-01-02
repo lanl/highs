@@ -306,6 +306,26 @@ func (m *RawModel) SetIntegrality(ts []VariableType) error {
 	return newCallStatus(status, "Highs_changeColsIntegralityByRange", "SetIntegrality")
 }
 
+// AddCompSparseHessian assigns a Hessian in compressed sparse row form to the
+// model.  This is used to formulate quadratic constraints in a
+// quadratic-programming model.
+func (m *RawModel) AddCompSparseHessian(start []int, index []int, value []float64) error {
+	// Check for simple errors.
+	if len(index) != len(value) {
+		return fmt.Errorf("index and value must be the same length (%d vs. %d)",
+			len(index), len(value))
+	}
+
+	// Invoke the HiGHS API.
+	hStart := convertSlice[C.HighsInt, int](start)
+	hIndex := convertSlice[C.HighsInt, int](index)
+	hValue := convertSlice[C.double, float64](value)
+	status := C.Highs_passHessian(m.obj, C.HighsInt(len(start)),
+		C.HighsInt(len(value)), C.kHighsHessianFormatTriangular,
+		&hStart[0], &hIndex[0], &hValue[0])
+	return newCallStatus(status, "Highs_passHessian", "AddCompSparseHessian")
+}
+
 // A RawSolution encapsulates all the values returned by various HiGHS solvers
 // and provides methods to retrieve additional information.
 type RawSolution struct {
