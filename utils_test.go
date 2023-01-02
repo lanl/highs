@@ -32,11 +32,17 @@ func roundFloats(e float64, xs []float64) []float64 {
 // checkErr calls another function and aborts the test if it returns a non-nil
 // error.
 func checkErr(t *testing.T, e error) {
+	// Do nothing on successful calls.
 	if e == nil {
 		return
 	}
+
+	// Ignore warnings.
 	var cs CallStatus
-	if errors.As(e, &cs) && !cs.IsWarning() {
-		t.Fatal(e)
+	if errors.As(e, &cs) && cs.IsWarning() {
+		return
 	}
+
+	// Fail on everything else.
+	t.Fatal(e)
 }
