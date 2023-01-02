@@ -1,33 +1,11 @@
-// This file tests the high package's linear-programming wrappers.
+// This file tests the high package's high-level API with linear-programming
+// models.
 
 package highs
 
 import (
 	"testing"
 )
-
-// TestMakeSparseMatrix tests the conversion of a slice of Nonzeros to start,
-// index, and value slices.
-func TestMakeSparseMatrix(t *testing.T) {
-	// Construct a sparse matrix.
-	var model LPModel
-	model.CoeffMatrix = []Nonzero{
-		{0, 1, 1.0},
-		{1, 0, 1.0},
-		{1, 1, 2.0},
-		{2, 0, 3.0},
-		{2, 1, 2.0},
-	}
-	start, index, value, err := nonzerosToCSR(model.CoeffMatrix, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Validate the three slices.
-	compSlices(t, "start", start, []int{0, 1, 3})
-	compSlices(t, "index", index, []int{1, 0, 1, 0, 1})
-	compSlices(t, "value", value, []float64{1.0, 1.0, 2.0, 3.0, 2.0})
-}
 
 // TestMinimalAPIMin mimics the first test in HiGHS's minimal_api function from
 // examples/call_highs_from_c.c:
@@ -39,8 +17,7 @@ func TestMakeSparseMatrix(t *testing.T) {
 //	0 <= x_0 <= 4; 1 <= x_1
 func TestMinimalAPIMin(t *testing.T) {
 	// Prepare the model.
-	var model LPModel
-	model.Maximize = false // Unnecessary but included for testing
+	var model Model
 	model.Offset = 3.0
 	model.ColCosts = []float64{1.0, 1.0}
 	model.ColLower = []float64{0.0, 1.0}
@@ -58,10 +35,10 @@ func TestMinimalAPIMin(t *testing.T) {
 	// Solve the model.
 	soln, err := model.Solve()
 	if err != nil {
-		t.Fatalf("solve failed (%s)", err)
+		t.Fatalf("Solve failed (%s)", err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.
@@ -88,7 +65,7 @@ func TestMinimalAPIMin(t *testing.T) {
 //	0 <= x_0 <= 4; 1 <= x_1
 func TestMinimalAPIMax(t *testing.T) {
 	// Prepare the model.
-	var model LPModel
+	var model Model
 	model.Maximize = true
 	model.Offset = 3.0
 	model.ColCosts = []float64{1.0, 1.0}
@@ -107,10 +84,10 @@ func TestMinimalAPIMax(t *testing.T) {
 	// Solve the model.
 	soln, err := model.Solve()
 	if err != nil {
-		t.Fatalf("solve failed (%s)", err)
+		t.Fatalf("Solve failed (%s)", err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.
@@ -131,7 +108,7 @@ func TestMinimalAPIMax(t *testing.T) {
 // AddDenseRow convenience method.
 func TestAddDenseRow(t *testing.T) {
 	// Prepare the model.
-	var model LPModel
+	var model Model
 	model.Maximize = false // Unnecessary but included for testing
 	model.Offset = 3.0
 	model.ColCosts = []float64{1.0, 1.0}
@@ -144,10 +121,10 @@ func TestAddDenseRow(t *testing.T) {
 	// Solve the model.
 	soln, err := model.Solve()
 	if err != nil {
-		t.Fatalf("solve failed (%s)", err)
+		t.Fatalf("Solve failed (%s)", err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.
@@ -171,17 +148,17 @@ func TestAddDenseRow(t *testing.T) {
 //	        17 <= x_0 - x_1 <= 17
 func TestImplicitColumnBounds(t *testing.T) {
 	// Prepare the model.
-	var model LPModel
+	var model Model
 	model.AddDenseRow(23.0, []float64{1.0, 1.0}, 23.0)
 	model.AddDenseRow(17.0, []float64{1.0, -1.0}, 17.0)
 
 	// Solve the model.
 	soln, err := model.Solve()
 	if err != nil {
-		t.Fatalf("solve failed (%s)", err)
+		t.Fatalf("Solve failed (%s)", err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.
@@ -189,18 +166,18 @@ func TestImplicitColumnBounds(t *testing.T) {
 	compSlices(t, "RowPrimal", soln.RowPrimal, []float64{23.0, 17.0})
 }
 
-// TestLPModelToRawModel sets up an LPModel, converts it to a RawModel, and
-// solves it.  We use the following test problem:
+// TestLPModelToRawModel sets up an LP model, converts it to a RawModel, and
+// solves it.  It formulates the following test problem:
 //
 //	Satisfy 1 <= x_0 - x_1 <= 1
 //	        5 <= x_0 + x_1 <= 5
 func TestLPModelToRawModel(t *testing.T) {
 	// Prepare the model.
-	var model LPModel
+	var model Model
 	model.AddDenseRow(1.0, []float64{1.0, -1.0}, 1.0)
 	model.AddDenseRow(5.0, []float64{1.0, 1.0}, 5.0)
 
-	// Convert the LPModel to a RawModel.
+	// Convert the Model to a RawModel.
 	raw, err := model.ToRawModel()
 	if err != nil {
 		t.Fatal(err)
@@ -213,7 +190,7 @@ func TestLPModelToRawModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.

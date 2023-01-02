@@ -1,296 +1,30 @@
-// This file provides fields and methods that are common across multiple HiGHS
-// models.
+// This file provides the high-level Model type and associated functions and
+// methods.
 
 package highs
 
 import (
+	"errors"
 	"fmt"
 	"math"
-	"sort"
 )
 
 // #include "highs-externs.h"
 import "C"
 
-// A Nonzero represents a nonzero entry in a sparse matrix.  Rows and columns
-// are indexed from zero.
-type Nonzero struct {
-	Row   int
-	Col   int
-	Value float64
-}
-
-// A BasisStatus represents the basis status of a row or column.
-type BasisStatus int
-
-// These are the values a BasisStatus accepts:
-const (
-	UnknownBasisStatus BasisStatus = iota
-	Lower
-	Basic
-	Upper
-	Zero
-	NonBasic
-)
-
-// convertHighsBasisStatus converts a kHighsBasisStatus to a BasisStatus.
-func convertHighsBasisStatus(hbs C.HighsInt) BasisStatus {
-	switch hbs {
-	case C.kHighsBasisStatusLower:
-		return Lower
-	case C.kHighsBasisStatusBasic:
-		return Basic
-	case C.kHighsBasisStatusUpper:
-		return Upper
-	case C.kHighsBasisStatusZero:
-		return Zero
-	case C.kHighsBasisStatusNonbasic:
-		return NonBasic
-	default:
-		return UnknownBasisStatus
-	}
-}
-
-// A ModelStatus represents the status of an attempt to solve a model.
-type ModelStatus int
-
-// These are the values a ModelStatus accepts:
-const (
-	UnknownModelStatus ModelStatus = iota
-	NotSet
-	LoadError
-	ModelError
-	PresolveError
-	SolveError
-	PostsolveError
-	ModelEmpty
-	Optimal
-	Infeasible
-	UnboundedOrInfeasible
-	Unbounded
-	ObjectiveBound
-	ObjectiveTarget
-	TimeLimit
-	IterationLimit
-)
-
-// convertHighsModelStatus converts a kHighsModelStatus to a ModelStatus.
-func convertHighsModelStatus(hms C.HighsInt) ModelStatus {
-	switch hms {
-	case C.kHighsModelStatusNotset:
-		return NotSet
-	case C.kHighsModelStatusLoadError:
-		return LoadError
-	case C.kHighsModelStatusModelError:
-		return ModelError
-	case C.kHighsModelStatusPresolveError:
-		return PresolveError
-	case C.kHighsModelStatusSolveError:
-		return SolveError
-	case C.kHighsModelStatusPostsolveError:
-		return PostsolveError
-	case C.kHighsModelStatusModelEmpty:
-		return ModelEmpty
-	case C.kHighsModelStatusOptimal:
-		return Optimal
-	case C.kHighsModelStatusInfeasible:
-		return Infeasible
-	case C.kHighsModelStatusUnboundedOrInfeasible:
-		return UnboundedOrInfeasible
-	case C.kHighsModelStatusUnbounded:
-		return Unbounded
-	case C.kHighsModelStatusObjectiveBound:
-		return ObjectiveBound
-	case C.kHighsModelStatusObjectiveTarget:
-		return ObjectiveTarget
-	case C.kHighsModelStatusTimeLimit:
-		return TimeLimit
-	case C.kHighsModelStatusIterationLimit:
-		return IterationLimit
-	default:
-		return UnknownModelStatus
-	}
-}
-
-// A Model encapsulates fields common to many HiGHS models.  It should not be
-// used directly.
+// A Model encapsulates all the data needed to express linear-programming
+// models, mixed-integer models, and quadratic-programming models.
 type Model struct {
-	Maximize    bool      // true=maximize; false=minimize
-	ColCosts    []float64 // Column costs (i.e., the objective function itself)
-	Offset      float64   // Objective-function constant offset
-	ColLower    []float64 // Column lower bounds
-	ColUpper    []float64 // Column upper bounds
-	RowLower    []float64 // Row lower bounds
-	RowUpper    []float64 // Row upper bounds
-	CoeffMatrix []Nonzero // Sparse matrix of per-row variable coefficients
-}
-
-// filterNonzeros sorts a list of Nonzero elements, removes duplicates, and, if
-// tri is true, rejects lower-triangular elements.  filterNonzeros serves as a
-// helper function for nonzerosToCSR.
-func filterNonzeros(nz []Nonzero, tri bool) ([]Nonzero, error) {
-	// Complain about negative indices.
-	for _, v := range nz {
-		if v.Row < 0 || v.Col < 0 {
-			err := fmt.Errorf("(%d, %d) is not a valid coordinate for a matrix coefficient",
-				v.Row, v.Col)
-			return nil, err
-		}
-	}
-
-	// Optionally complain about lower-triangular indices.
-	if tri {
-		for _, v := range nz {
-			if v.Row > v.Col {
-				err := fmt.Errorf("(%d, %d) is not a valid upper-triangular coordinate for a matrix coefficient",
-					v.Row, v.Col)
-				return nil, err
-			}
-		}
-	}
-
-	// Make a copy of the nonzeroes and sort the copy in place.
-	sorted := make([]Nonzero, len(nz))
-	copy(sorted, nz)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		nz0 := sorted[i]
-		nz1 := sorted[j]
-		switch {
-		case nz0.Row < nz1.Row:
-			return true
-		case nz0.Row > nz1.Row:
-			return false
-		case nz0.Col < nz1.Col:
-			return true
-		case nz0.Col > nz1.Col:
-			return false
-		default:
-			return false // Equal coordinates
-		}
-	})
-
-	// Elide duplicate entries, keeping the latest value.
-	noDups := make([]Nonzero, 0, len(sorted))
-	for _, v := range sorted {
-		i := len(noDups)
-		switch {
-		case i == 0:
-			// First element: always include.
-			noDups = append(noDups, v)
-		case v.Row == noDups[i-1].Row && v.Col == noDups[i-1].Col:
-			// Duplicate coordinate: retain the later value.
-			noDups[i-1].Value = v.Value
-		default:
-			// New coordinate.
-			noDups = append(noDups, v)
-		}
-	}
-	return noDups, nil
-}
-
-// nonzerosToCSR converts a list of Nonzero elements to a compressed sparse row
-// representation in the form of a set of C vectors accepted by the HiGHS APIs.
-func nonzerosToCSR(nz []Nonzero, tri bool) (start, index []C.HighsInt, value []C.double, err error) {
-	// Allocate memory for all of our return vectors.
-	var nonzeros []Nonzero
-	nonzeros, err = filterNonzeros(nz, tri)
-	if err != nil {
-		return nil, nil, nil, err
-	}
-	start = make([]C.HighsInt, 0, len(nonzeros))
-	index = make([]C.HighsInt, 0, len(nonzeros))
-	value = make([]C.double, 0, len(nonzeros))
-
-	// Construct slices of C types.
-	prevRow := -1
-	for _, nz := range nonzeros {
-		if nz.Row > prevRow {
-			start = append(start, C.HighsInt(len(value)))
-			prevRow = nz.Row
-		}
-		index = append(index, C.HighsInt(nz.Col))
-		value = append(value, C.double(nz.Value))
-	}
-	return start, index, value, nil
-}
-
-// replaceNilSlices infers the number of rows and columns in a model and
-// replaces nil slices with default-valued slices of the appropriate size.  It
-// returns the number of rows, the number of columns, a modified copy of the
-// Model, and a success flag.  The success flag is false if the number of
-// columns is inconsistent across non-nil fields.
-func (m *Model) replaceNilSlices() (int, int, *Model, bool) {
-	// Infer the number of rows and columns in the model.
-	nc, nr := 0, 0
-	for _, nz := range m.CoeffMatrix {
-		if nz.Row >= nr {
-			nr = nz.Row + 1
-		}
-		if nz.Col >= nc {
-			nc = nz.Col + 1
-		}
-	}
-	if len(m.ColCosts) > nc {
-		nc = len(m.ColCosts)
-	}
-	if len(m.ColLower) > nc {
-		nc = len(m.ColLower)
-	}
-	if len(m.ColUpper) > nc {
-		nc = len(m.ColUpper)
-	}
-	if len(m.RowLower) > nr {
-		nr = len(m.RowLower)
-	}
-	if len(m.RowUpper) > nr {
-		nr = len(m.RowUpper)
-	}
-
-	// Make a copy of the model so we don't modify the original.
-	mc := *m
-
-	// Replace nil slices with slices of the appropriate size.
-	if mc.ColCosts == nil {
-		mc.ColCosts = make([]float64, nc)
-	}
-	mInf, pInf := math.Inf(-1), math.Inf(1)
-	if mc.ColLower == nil {
-		mc.ColLower = make([]float64, nc)
-		for i := range mc.ColLower {
-			mc.ColLower[i] = mInf
-		}
-	}
-	if mc.ColUpper == nil {
-		mc.ColUpper = make([]float64, nc)
-		for i := range mc.ColUpper {
-			mc.ColUpper[i] = pInf
-		}
-	}
-	if mc.RowLower == nil {
-		mc.RowLower = make([]float64, nr)
-		for i := range mc.RowLower {
-			mc.RowLower[i] = mInf
-		}
-	}
-	if mc.RowUpper == nil {
-		mc.RowUpper = make([]float64, nr)
-		for i := range mc.RowUpper {
-			mc.RowUpper[i] = pInf
-		}
-	}
-
-	// Complain if any slice is the wrong size.
-	switch {
-	case len(mc.ColLower) != nc:
-		return 0, 0, nil, false
-	case len(mc.ColLower) != nc, len(mc.ColUpper) != nc:
-		return 0, 0, nil, false
-	case len(mc.RowLower) != nr, len(mc.RowUpper) != nr:
-		return 0, 0, nil, false
-	}
-
-	// Return the row and column sizes.
-	return nr, nc, &mc, true
+	Maximize      bool           // true=maximize; false=minimize
+	ColCosts      []float64      // Column costs (i.e., the objective function itself)
+	Offset        float64        // Objective-function constant offset
+	ColLower      []float64      // Column lower bounds
+	ColUpper      []float64      // Column upper bounds
+	RowLower      []float64      // Row lower bounds
+	RowUpper      []float64      // Row upper bounds
+	CoeffMatrix   []Nonzero      // Sparse matrix of per-row variable coefficients
+	HessianMatrix []Nonzero      // Sparse, upper-triangular matrix of second partial derivatives of quadratic constraints
+	VarTypes      []VariableType // Type of each model variable
 }
 
 // AddDenseRow is a convenience function that lets the caller add to the model
@@ -305,10 +39,188 @@ func (m *Model) AddDenseRow(lb float64, coeffs []float64, ub float64) {
 			continue
 		}
 		nz := Nonzero{
-			Row:   r,
-			Col:   c,
-			Value: v,
+			Row: r,
+			Col: c,
+			Val: v,
 		}
 		m.CoeffMatrix = append(m.CoeffMatrix, nz)
 	}
+}
+
+// modelSize returns the number of rows and columns in a model.  It works by
+// taking the maximum encountered in any of the fields representing rows or
+// columns.
+func (m *Model) modelSize() (int, int) {
+	nr, nc := 0, 0
+	for _, nz := range m.CoeffMatrix {
+		if nz.Row >= nr {
+			nr = nz.Row + 1
+		}
+		if nz.Col >= nc {
+			nc = nz.Col + 1
+		}
+	}
+	for _, nz := range m.HessianMatrix {
+		// A Hessian matrix is nc by nc.
+		if nz.Col >= nc {
+			nc = nz.Col + 1
+		}
+	}
+	if len(m.ColCosts) > nc {
+		nc = len(m.ColCosts)
+	}
+	if len(m.ColLower) > nc {
+		nc = len(m.ColLower)
+	}
+	if len(m.VarTypes) > nc {
+		nc = len(m.VarTypes)
+	}
+	if len(m.ColUpper) > nc {
+		nc = len(m.ColUpper)
+	}
+	if len(m.RowLower) > nr {
+		nr = len(m.RowLower)
+	}
+	if len(m.RowUpper) > nr {
+		nr = len(m.RowUpper)
+	}
+	return nr, nc
+}
+
+// ToRawModel converts a high-level model to a low-level model.
+func (m *Model) ToRawModel() (*RawModel, error) {
+	// Construct an emtpy raw model.  Turn off output, which is out of
+	// place in a method like ToRawModel.
+	raw := NewRawModel()
+	outFlag, err := raw.GetBoolOption("output_flag") // Presumably "true"
+	if err != nil {
+		return &RawModel{}, err
+	}
+	err = raw.SetBoolOption("output_flag", false)
+	if err != nil {
+		return &RawModel{}, err
+	}
+
+	// Convert CoeffMatrix and HessianMatrix to CSR format.
+	aStart, aIndex, aValue, err := nonzerosToCSR(m.CoeffMatrix, false)
+	if err != nil {
+		return &RawModel{}, err
+	}
+	qStart, qIndex, qValue, err := nonzerosToCSR(m.HessianMatrix, true)
+	if err != nil {
+		return &RawModel{}, err
+	}
+
+	// Convert Go values to C values.
+	nr, nc := m.modelSize()
+	numCol := C.HighsInt(nc)
+	numRow := C.HighsInt(nr)
+	numNZ := C.HighsInt(len(aValue))
+	qNumNZ := C.HighsInt(len(qValue))
+	aFormat := C.kHighsMatrixFormatRowwise
+	qFormat := C.kHighsHessianFormatTriangular
+	sense := C.kHighsObjSenseMinimize
+	if m.Maximize {
+		sense = C.kHighsObjSenseMaximize
+	}
+	offset := C.double(m.Offset)
+	colCost := convertSlice[C.double, float64](m.ColCosts)
+	colLower := convertSlice[C.double, float64](m.ColLower)
+	colUpper := convertSlice[C.double, float64](m.ColUpper)
+	rowLower := convertSlice[C.double, float64](m.RowLower)
+	rowUpper := convertSlice[C.double, float64](m.RowUpper)
+	integrality := make([]C.HighsInt, len(m.VarTypes))
+	for i, vt := range m.VarTypes {
+		integrality[i] = variableTypeToHighs[vt]
+	}
+
+	// Ensure that all slices have consistent lengths.
+	var ok bool
+	if colCost, ok = expandToLen(nc, colCost, 1.0); !ok {
+		return &RawModel{}, fmt.Errorf("inconsistent column counts")
+	}
+	mInf, pInf := C.double(math.Inf(-1)), C.double(math.Inf(1))
+	if colLower, ok = expandToLen(nc, colLower, mInf); !ok {
+		return &RawModel{}, fmt.Errorf("inconsistent column counts")
+	}
+	if colUpper, ok = expandToLen(nc, colUpper, pInf); !ok {
+		return &RawModel{}, fmt.Errorf("inconsistent column counts")
+	}
+	if rowLower, ok = expandToLen(nr, rowLower, mInf); !ok {
+		return &RawModel{}, fmt.Errorf("inconsistent row counts")
+	}
+	if rowUpper, ok = expandToLen(nr, rowUpper, pInf); !ok {
+		return &RawModel{}, fmt.Errorf("inconsistent row counts")
+	}
+	if integrality, ok = expandToLen(nc, integrality, C.kHighsVarTypeContinuous); !ok {
+		return &RawModel{}, fmt.Errorf("inconsistent column counts")
+	}
+
+	// Construct a low-level model.
+	status := C.Highs_passModel(raw.obj, numCol, numRow,
+		numNZ, qNumNZ,
+		aFormat, qFormat, sense,
+		offset, sliceToPointer(colCost),
+		sliceToPointer(colLower), sliceToPointer(colUpper),
+		sliceToPointer(rowLower), sliceToPointer(rowUpper),
+		sliceToPointer(aStart), sliceToPointer(aIndex), sliceToPointer(aValue),
+		sliceToPointer(qStart), sliceToPointer(qIndex), sliceToPointer(qValue),
+		sliceToPointer(integrality))
+	err = newCallStatus(status, "Highs_passModel", "ToRawModel")
+	if err != nil {
+		return &RawModel{}, err
+	}
+
+	// Restore the previous value of output_flag.
+	err = raw.SetBoolOption("output_flag", outFlag)
+	if err != nil {
+		return &RawModel{}, err
+	}
+	return raw, nil
+}
+
+// A Solution encapsulates all the values returned by any of HiGHS's solvers.
+// Not all fields will be meaningful when returned by any given solver.
+type Solution struct {
+	Status       ModelStatus   // Status of the LP solve
+	ColumnPrimal []float64     // Primal column solution
+	RowPrimal    []float64     // Primal row solution
+	ColumnDual   []float64     // Dual column solution
+	RowDual      []float64     // Dual row solution
+	ColumnBasis  []BasisStatus // Basis status of each column
+	RowBasis     []BasisStatus // Basis status of each row
+	Objective    float64       // Objective value
+}
+
+// Solve solves the model as either an LP, MIP, or QP problem, depending on
+// which fields are non-nil.
+func (m *Model) Solve() (Solution, error) {
+	// Convert the Model to a RawModel.
+	var cs CallStatus
+	raw, err := m.ToRawModel()
+	if err != nil {
+		if errors.As(err, &cs) {
+			// Hide the fact that ToRawModel was invoked internally.
+			cs.GoName = "Solve"
+		}
+		return Solution{}, err
+	}
+
+	// Disable status output.
+	err = raw.SetBoolOption("output_flag", false)
+	if err != nil {
+		if errors.As(err, &cs) {
+			// Hide the fact that SetBoolOption was invoked
+			// internally.
+			cs.GoName = "Solve"
+		}
+		return Solution{}, err
+	}
+
+	// Solve the raw model.
+	soln, err := raw.Solve()
+	if err != nil {
+		return Solution{}, err
+	}
+	return soln.Solution, nil
 }

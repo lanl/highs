@@ -329,15 +329,8 @@ func (m *RawModel) AddCompSparseHessian(start []int, index []int, value []float6
 // A RawSolution encapsulates all the values returned by various HiGHS solvers
 // and provides methods to retrieve additional information.
 type RawSolution struct {
-	obj          unsafe.Pointer // Underlying highs opaque data type
-	Status       ModelStatus    // Status of the solution
-	ColumnPrimal []float64      // Primal column solution
-	RowPrimal    []float64      // Primal row solution
-	ColumnDual   []float64      // Dual column solution
-	RowDual      []float64      // Dual row solution
-	ColumnBasis  []BasisStatus  // Basis status of each column
-	RowBasis     []BasisStatus  // Basis status of each row
-	Objective    float64        // Objective value
+	obj      unsafe.Pointer // Underlying opaque highs data type
+	Solution                // Values returned by the solver
 }
 
 // GetIntInfo returns the integer value of a named piece of information.

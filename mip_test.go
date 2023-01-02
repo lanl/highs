@@ -1,4 +1,6 @@
-// This file tests the high package's mixed-integer programming wrappers.
+// This file tests the high package's high-level API with mixed-integer
+// programming models.
+
 
 package highs
 
@@ -14,7 +16,7 @@ import "testing"
 //	0 <= x_0 <= 4; 1 <= x_1
 func TestMinimalAPIMaxMIP(t *testing.T) {
 	// Prepare the model.
-	var model MIPModel
+	var model Model
 	model.Maximize = true
 	model.Offset = 3.0
 	model.ColCosts = []float64{1.0, 1.0}
@@ -34,10 +36,10 @@ func TestMinimalAPIMaxMIP(t *testing.T) {
 	// Solve the model.
 	soln, err := model.Solve()
 	if err != nil {
-		t.Fatalf("solve failed (%s)", err)
+		t.Fatalf("Solve failed (%s)", err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.
@@ -50,19 +52,19 @@ func TestMinimalAPIMaxMIP(t *testing.T) {
 	}
 }
 
-// TestMIPModelToRawModel sets up an MIPModel, converts it to a RawModel, and
+// TestMIPModelToRawModel sets up a MIP model, converts it to a RawModel, and
 // solves it.  We use the following test problem:
 //
 //	Satisfy 1 <= x_0 - x_1 <= 1
 //	        5 <= x_0 + x_1 <= 5
 func TestMIPModelToRawModel(t *testing.T) {
 	// Prepare the model.
-	var model MIPModel
+	var model Model
 	model.AddDenseRow(1.0, []float64{1.0, -1.0}, 1.0)
 	model.AddDenseRow(5.0, []float64{1.0, 1.0}, 5.0)
 	model.VarTypes = []VariableType{IntegerType, IntegerType}
 
-	// Convert the MIPModel to a RawModel.
+	// Convert the MIP model to a RawModel.
 	raw, err := model.ToRawModel()
 	if err != nil {
 		t.Fatal(err)
@@ -75,7 +77,7 @@ func TestMIPModelToRawModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.

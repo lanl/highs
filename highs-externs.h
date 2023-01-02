@@ -52,67 +52,16 @@ extern const HighsInt kHighsBasisStatusZero;
 extern const HighsInt kHighsBasisStatusNonbasic;
 
 extern
-HighsInt Highs_lpCall(const HighsInt num_col, const HighsInt num_row,
-                      const HighsInt num_nz, const HighsInt a_format,
-                      const HighsInt sense, const double offset,
-                      const double* col_cost, const double* col_lower,
-                      const double* col_upper, const double* row_lower,
-                      const double* row_upper, const HighsInt* a_start,
-                      const HighsInt* a_index, const double* a_value,
-                      double* col_value, double* col_dual, double* row_value,
-                      double* row_dual, HighsInt* col_basis_status,
-                      HighsInt* row_basis_status, HighsInt* model_status);
-
-extern
-HighsInt Highs_mipCall(const HighsInt num_col, const HighsInt num_row,
-                       const HighsInt num_nz, const HighsInt a_format,
-                       const HighsInt sense, const double offset,
-                       const double* col_cost, const double* col_lower,
-                       const double* col_upper, const double* row_lower,
-                       const double* row_upper, const HighsInt* a_start,
-                       const HighsInt* a_index, const double* a_value,
-                       const HighsInt* integrality, double* col_value,
-                       double* row_value, HighsInt* model_status);
-
-extern
-HighsInt Highs_qpCall(const HighsInt num_col, const HighsInt num_row,
-                      const HighsInt num_nz, const HighsInt q_num_nz,
-                      const HighsInt a_format, const HighsInt q_format,
-                      const HighsInt sense, const double offset,
-                      const double* col_cost, const double* col_lower,
-                      const double* col_upper, const double* row_lower,
-                      const double* row_upper, const HighsInt* a_start,
-                      const HighsInt* a_index, const double* a_value,
-                      const HighsInt* q_start, const HighsInt* q_index,
-                      const double* q_value, double* col_value,
-                      double* col_dual, double* row_value, double* row_dual,
-                      HighsInt* col_basis_status, HighsInt* row_basis_status,
-                      HighsInt* model_status);
-
-extern
-HighsInt Highs_passLp(void* highs, const HighsInt num_col,
-                      const HighsInt num_row, const HighsInt num_nz,
-                      const HighsInt a_format, const HighsInt sense,
-                      const double offset, const double* col_cost,
-                      const double* col_lower, const double* col_upper,
-                      const double* row_lower, const double* row_upper,
-                      const HighsInt* a_start, const HighsInt* a_index,
-                      const double* a_value);
-
-extern
-HighsInt Highs_passMip(void* highs, const HighsInt num_col,
-                       const HighsInt num_row, const HighsInt num_nz,
-                       const HighsInt a_format, const HighsInt sense,
-                       const double offset, const double* col_cost,
-                       const double* col_lower, const double* col_upper,
-                       const double* row_lower, const double* row_upper,
-                       const HighsInt* a_start, const HighsInt* a_index,
-                       const double* a_value, const HighsInt* integrality);
-
-extern
-HighsInt Highs_passHessian(void* highs, const HighsInt dim,
-                           const HighsInt num_nz, const HighsInt format,
-                           const HighsInt* start, const HighsInt* index,
-                           const double* value);
+HighsInt Highs_passModel(void* highs, const HighsInt num_col,
+                         const HighsInt num_row, const HighsInt num_nz,
+                         const HighsInt q_num_nz, const HighsInt a_format,
+                         const HighsInt q_format, const HighsInt sense,
+                         const double offset, const double* col_cost,
+                         const double* col_lower, const double* col_upper,
+                         const double* row_lower, const double* row_upper,
+                         const HighsInt* a_start, const HighsInt* a_index,
+                         const double* a_value, const HighsInt* q_start,
+                         const HighsInt* q_index, const double* q_value,
+                         const HighsInt* integrality);
 
 #endif

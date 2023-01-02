@@ -35,7 +35,7 @@ func TestFullAPIMin(t *testing.T) {
 		t.Fatal(err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.
@@ -72,7 +72,7 @@ func TestFullAPIInfeasible(t *testing.T) {
 		t.Fatal(err)
 	}
 	if soln.Status != Infeasible {
-		t.Fatalf("solve returned %s instead of Infeasible", soln.Status)
+		t.Fatalf("Solve returned %s instead of Infeasible", soln.Status)
 	}
 }
 
@@ -104,7 +104,7 @@ func TestFullAPIMaxMIP(t *testing.T) {
 		t.Fatal(err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.
@@ -168,7 +168,7 @@ func TestReadModel(t *testing.T) {
 		t.Fatal(err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.
@@ -211,10 +211,10 @@ func TestFullAPIQPMin(t *testing.T) {
 	// Solve the model.
 	soln, err := model.Solve()
 	if err != nil {
-		t.Fatalf("solve failed (%s)", err)
+		t.Fatalf("Solve failed (%s)", err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.

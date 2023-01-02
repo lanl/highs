@@ -1,4 +1,5 @@
-// This file tests the high package's linear-programming wrappers.
+// This file tests the high package's high-level API with quadratic-programming
+// models.
 
 package highs
 
@@ -17,7 +18,7 @@ import (
 // Like TestCAPI.c, we don't actually enforce the x>=0 column constraints.
 func TestMinimalAPIQPMin(t *testing.T) {
 	// Prepare the model.
-	var model QPModel
+	var model Model
 	model.ColCosts = []float64{0.0, -1.0, -3.0}
 	model.AddDenseRow(-1e30, []float64{1.0, 0.0, 1.0}, 2.0)
 	model.HessianMatrix = []Nonzero{
@@ -30,10 +31,10 @@ func TestMinimalAPIQPMin(t *testing.T) {
 	// Solve the model.
 	soln, err := model.Solve()
 	if err != nil {
-		t.Fatalf("solve failed (%s)", err)
+		t.Fatalf("Solve failed (%s)", err)
 	}
 	if soln.Status != Optimal {
-		t.Fatalf("solve returned %s instead of Optimal", soln.Status)
+		t.Fatalf("Solve returned %s instead of Optimal", soln.Status)
 	}
 
 	// Confirm that each field is as expected.
