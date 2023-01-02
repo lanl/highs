@@ -26,9 +26,9 @@ func (e CallStatus) Error() string {
 	case int(C.kHighsStatusError):
 		return fmt.Sprintf("%s failed with an error", e.GoName)
 	case int(C.kHighsStatusWarning):
-		return fmt.Sprintf("%s failed with a warning", e.GoName)
+		return fmt.Sprintf("%s completed with a warning", e.GoName)
 	default:
-		return fmt.Sprintf("%s failed with an unknown status", e.GoName)
+		return fmt.Sprintf("%s exited with an unknown status", e.GoName)
 	}
 }
 

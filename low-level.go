@@ -4,8 +4,11 @@
 package highs
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"math"
+	"os"
 	"runtime"
 	"unsafe"
 )
@@ -34,23 +37,99 @@ func NewRawModel() *RawModel {
 // a named file.
 func (m *RawModel) ReadModelFromFile(fn string) error {
 	// Convert the filename argument from Go to C.
-	fname := C.CString(fn)
-	defer C.free(unsafe.Pointer(fname))
+	fName := C.CString(fn)
+	defer C.free(unsafe.Pointer(fName))
 
 	// Read into the model.
-	status := C.Highs_readModel(m.obj, fname)
+	status := C.Highs_readModel(m.obj, fName)
 	return newCallStatus(status, "Highs_readModel", "ReadModelFromFile")
+}
+
+// ReadModel overwrites the model with a model read in MPS format from an
+// io.Reader.
+func (m *RawModel) ReadModel(r io.Reader) error {
+	// Copy from the reader to a throwaway file.
+	tFile, err := os.CreateTemp("", "highs-*.mps")
+	if err != nil {
+		return err
+	}
+	fName := tFile.Name()
+	defer os.Remove(fName)
+	_, err = io.Copy(tFile, r)
+	if err != nil {
+		return err
+	}
+	err = tFile.Close()
+	if err != nil {
+		return err
+	}
+
+	// Convert the throwaway filename from Go to C.
+	cFName := C.CString(fName)
+	defer C.free(unsafe.Pointer(cFName))
+
+	// Read into the model.
+	status := C.Highs_readModel(m.obj, cFName)
+	return newCallStatus(status, "Highs_readModel", "ReadModel")
 }
 
 // WriteModelToFile writes a model in MPS format to a named file.
 func (m *RawModel) WriteModelToFile(fn string) error {
 	// Convert the filename argument from Go to C.
-	fname := C.CString(fn)
-	defer C.free(unsafe.Pointer(fname))
+	cFName := C.CString(fn)
+	defer C.free(unsafe.Pointer(cFName))
 
 	// Write the model.
-	status := C.Highs_writeModel(m.obj, fname)
+	status := C.Highs_writeModel(m.obj, cFName)
 	return newCallStatus(status, "Highs_writeModel", "WriteModelToFile")
+}
+
+// WriteModel writes a model in MPS format to an io.Writer.
+func (m *RawModel) WriteModel(w io.Writer) error {
+	// Create a throwaway file to use as a staging area.
+	tFile, err := os.CreateTemp("", "highs-*.mps")
+	if err != nil {
+		return err
+	}
+	fName := tFile.Name()
+	defer os.Remove(fName)
+	err = tFile.Close()
+	if err != nil {
+		return err
+	}
+
+	// Convert the throwaway filename from Go to C.
+	cFName := C.CString(fName)
+	defer C.free(unsafe.Pointer(cFName))
+
+	// Write the model to the throwaway file.
+	status := C.Highs_writeModel(m.obj, cFName)
+	err = newCallStatus(status, "Highs_writeModel", "WriteModel")
+
+	// Ignore warnings (common for Highs_writeModel).
+	var cs CallStatus
+	if errors.As(err, &cs) {
+		if !cs.IsWarning() {
+			return err
+		}
+	} else if err != nil {
+		return err
+	}
+
+	// Copy the contents of the throwaway file to the io.Writer.
+	tFile, err = os.Open(fName)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(w, tFile)
+	if err != nil {
+		return err
+	}
+	err = tFile.Close()
+	if err != nil {
+		return err
+	}
+	return cs // Propagate any warnings.
 }
 
 // SetBoolOption assigns a Boolean value to a named option.
