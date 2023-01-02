@@ -64,4 +64,16 @@ HighsInt Highs_passModel(void* highs, const HighsInt num_col,
                          const HighsInt* q_index, const double* q_value,
                          const HighsInt* integrality);
 
+extern
+HighsInt Highs_getIntInfoValue(const void* highs, const char* info,
+                               HighsInt* value);
+
+extern
+HighsInt Highs_getDoubleInfoValue(const void* highs, const char* info,
+                                  double* value);
+
+extern
+HighsInt Highs_getInt64InfoValue(const void* highs, const char* info,
+                                 int64_t* value);
+
 #endif
