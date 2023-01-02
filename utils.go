@@ -3,6 +3,8 @@
 package highs
 
 import (
+	"fmt"
+
 	"golang.org/x/exp/constraints"
 )
 
@@ -21,11 +23,11 @@ type CallStatus struct {
 func (e CallStatus) Error() string {
 	switch e.Status {
 	case int(C.kHighsStatusError):
-		return "%s failed with an error"
+		return fmt.Sprintf("%s failed with an error", e.GoName)
 	case int(C.kHighsStatusWarning):
-		return "%s failed with a warning"
+		return fmt.Sprintf("%s failed with a warning", e.GoName)
 	default:
-		return "%s failed with an unknown status"
+		return fmt.Sprintf("%s failed with an unknown status", e.GoName)
 	}
 }
 
