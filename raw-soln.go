@@ -4,6 +4,8 @@
 package highs
 
 import (
+	"io"
+	"os"
 	"unsafe"
 )
 
@@ -67,4 +69,69 @@ func (s *RawSolution) GetFloat64Info(info string) (float64, error) {
 		return 0.0, err
 	}
 	return float64(val), nil
+}
+
+// WriteSolutionToFile writes a textual version of the solution to a named
+// file.  If the second argument is false, WriteSolutiontoFile will use a more
+// computer-friendly format; if true, it will use a more human-friendly format.
+func (s *RawSolution) WriteSolutionToFile(fn string, pretty bool) error {
+	// Convert the filename argument from Go to C.
+	cFName := C.CString(fn)
+	defer C.free(unsafe.Pointer(cFName))
+
+	// Write the solution.
+	if pretty {
+		status := C.Highs_writeSolutionPretty(s.obj, cFName)
+		return newCallStatus(status, "Highs_writeSolutionPretty", "WriteSolutionToFile")
+	}
+	status := C.Highs_writeSolution(s.obj, cFName)
+	return newCallStatus(status, "Highs_writeSolution", "WriteSolutionToFile")
+}
+
+// WriteSolution writes a textual version of the solution to an io.Writer.  If
+// the second argument is false, WriteSolutiontoFile will use a more
+// computer-friendly format; if true, it will use a more human-friendly format.
+func (s *RawSolution) WriteSolution(w io.Writer, pretty bool) error {
+	// Create a throwaway file to use as a staging area.
+	tFile, err := os.CreateTemp("", "highs-*.txt")
+	if err != nil {
+		return err
+	}
+	fName := tFile.Name()
+	defer os.Remove(fName)
+	err = tFile.Close()
+	if err != nil {
+		return err
+	}
+
+	// Convert the throwaway filename from Go to C.
+	cFName := C.CString(fName)
+	defer C.free(unsafe.Pointer(cFName))
+
+	// Write the solution to the throwaway file.
+	if pretty {
+		status := C.Highs_writeSolutionPretty(s.obj, cFName)
+		err = newCallStatus(status, "Highs_writeSolutionPretty", "WriteSolution")
+	} else {
+		status := C.Highs_writeSolution(s.obj, cFName)
+		err = newCallStatus(status, "Highs_writeSolution", "WriteSolution")
+	}
+	if err != nil {
+		return err
+	}
+
+	// Copy the contents of the throwaway file to the io.Writer.
+	tFile, err = os.Open(fName)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(w, tFile)
+	if err != nil {
+		return err
+	}
+	err = tFile.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }

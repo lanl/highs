@@ -76,4 +76,10 @@ extern
 HighsInt Highs_getInt64InfoValue(const void* highs, const char* info,
                                  int64_t* value);
 
+extern
+HighsInt Highs_writeSolution(const void* highs, const char* filename);
+
+extern
+HighsInt Highs_writeSolutionPretty(const void* highs, const char* filename);
+
 #endif
