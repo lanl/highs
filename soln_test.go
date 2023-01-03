@@ -4,6 +4,7 @@ package highs
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 )
 
@@ -42,6 +43,77 @@ func modelAndSolve() (*RawSolution, error) {
 		return nil, err
 	}
 	return raw.Solve() // Solution and error code
+}
+
+// TestGetIntInfo tests that GetIntInfo works.
+func TestGetIntInfo(t *testing.T) {
+	// Produce a solution.
+	soln, err := modelAndSolve()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Query it for information.
+	dss, err := soln.GetIntInfo("dual_solution_status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if dss != 0 {
+		t.Fatalf("expected a dual solution status of 0 but saw %d", dss)
+	}
+}
+
+// TestGetInt64Info tests that GetInt64Info works.
+func TestGetInt64Info(t *testing.T) {
+	// Produce a solution.
+	soln, err := modelAndSolve()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Query it for information.
+	mnc, err := soln.GetInt64Info("mip_node_count")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if mnc != 1 {
+		t.Fatalf("expected a MIP node count of 1 but saw %d", mnc)
+	}
+}
+
+// TestGetInt64InfoBad tests that GetInt64Info returns an error for a
+// nonexistent key.
+func TestGetInt64InfoBad(t *testing.T) {
+	// Produce a solution.
+	soln, err := modelAndSolve()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Query it for nonexistent information.
+	_, err = soln.GetInt64Info("bogus info key")
+	var cs CallStatus
+	if !errors.As(err, &cs) {
+		t.Fatalf("expected a failure code but received %v", err)
+	}
+}
+
+// TestGetFloat64Info tests that GetFloat64Info works.
+func TestGetFloat64Info(t *testing.T) {
+	// Produce a solution.
+	soln, err := modelAndSolve()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Query it for information.
+	miv, err := soln.GetFloat64Info("max_integrality_violation")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if miv != 0.0 {
+		t.Fatalf("expected a maximum integrality violation of 0 but saw %v", miv)
+	}
 }
 
 // TestWriteSolution tests the writing of a solution in a textual format.
