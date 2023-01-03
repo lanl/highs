@@ -154,6 +154,23 @@ func nonzerosToCSR(nz []Nonzero, tri bool) (start, index []C.HighsInt, value []C
 	return start, index, value, nil
 }
 
+// NonzerosToCSR is a convenience function that converts a slice of Nonzero
+// values (as used by Model) to compressed sparse row form, i.e., the separate
+// start, index, and value slices used by RawModel's AddCompSparseRows and
+// AddCompSparseHessian methods.  Pass true for the second argument to check
+// that the matrix is upper triangular (required for Hessian matrices) or false
+// to ignore that check.
+func NonzerosToCSR(nz []Nonzero, tri bool) (start, index []int, value []float64, err error) {
+	cStart, cIndex, cValue, err := nonzerosToCSR(nz, tri)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	start = convertSlice[int, C.HighsInt](cStart)
+	index = convertSlice[int, C.HighsInt](cIndex)
+	value = convertSlice[float64, C.double](cValue)
+	return start, index, value, nil
+}
+
 // expandToLen takes a length, a slice, and a value.  If the slice has the
 // given length, it returns the slice unmodified.  If the slice has length
 // zero, it returns a length-sized slice of value.  If the slice has any other
