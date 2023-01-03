@@ -433,11 +433,19 @@ func (m *RawModel) Solve() (*RawSolution, error) {
 	}
 	soln.ColumnPrimal = convertSlice[float64, C.double](colValue)
 	soln.RowPrimal = convertSlice[float64, C.double](rowValue)
-	soln.ColumnDual = convertSlice[float64, C.double](colDual)
-	soln.RowDual = convertSlice[float64, C.double](rowDual)
 	soln.Objective, err = soln.GetFloat64Info("objective_function_value")
 	if err != nil {
 		return &RawSolution{}, err
+	}
+
+	// Assign dual slices only if the dual-solution status is "feasible".
+	dss, err := soln.GetIntInfo("dual_solution_status")
+	if err != nil {
+		return &RawSolution{}, err
+	}
+	if dss == int(C.kHighsSolutionStatusFeasible) {
+		soln.ColumnDual = convertSlice[float64, C.double](colDual)
+		soln.RowDual = convertSlice[float64, C.double](rowDual)
 	}
 
 	// If basis data are available, convert them from C to Go.

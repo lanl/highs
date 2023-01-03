@@ -28,6 +28,10 @@ extern const HighsInt kHighsMatrixFormatRowwise;
 extern const HighsInt kHighsHessianFormatTriangular;
 extern const HighsInt kHighsHessianFormatSquare;
 
+extern const HighsInt kHighsSolutionStatusNone;
+extern const HighsInt kHighsSolutionStatusInfeasible;
+extern const HighsInt kHighsSolutionStatusFeasible;
+
 extern const HighsInt kHighsModelStatusNotset;
 extern const HighsInt kHighsModelStatusLoadError;
 extern const HighsInt kHighsModelStatusModelError;
