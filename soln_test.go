@@ -22,7 +22,7 @@ func modelAndSolve() (*RawSolution, error) {
 	model.ColCosts = []float64{3.0, 2.0, 1.0}
 	model.ColLower = []float64{0.0, 0.0, 0.0}
 	model.RowLower = []float64{1.0, 1.0, 10.0}
-	model.CoeffMatrix = []Nonzero{
+	model.ConstMatrix = []Nonzero{
 		{0, 0, 1.0},
 		{0, 1, -1.0},
 		{1, 1, 1.0},

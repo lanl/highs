@@ -15,14 +15,14 @@ import (
 func TestMakeSparseMatrix(t *testing.T) {
 	// Construct a sparse matrix.
 	var model Model
-	model.CoeffMatrix = []Nonzero{
+	model.ConstMatrix = []Nonzero{
 		{0, 1, 1.0},
 		{1, 0, 1.0},
 		{1, 1, 2.0},
 		{2, 0, 3.0},
 		{2, 1, 2.0},
 	}
-	start, index, value, err := nonzerosToCSR(model.CoeffMatrix, false)
+	start, index, value, err := nonzerosToCSR(model.ConstMatrix, false)
 	if err != nil {
 		t.Fatal(err)
 	}

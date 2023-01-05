@@ -22,7 +22,7 @@ type Model struct {
 	ColUpper      []float64      // Column upper bounds
 	RowLower      []float64      // Row lower bounds
 	RowUpper      []float64      // Row upper bounds
-	CoeffMatrix   []Nonzero      // Sparse matrix of per-row variable coefficients
+	ConstMatrix   []Nonzero      // Sparse constraint matrix (per-row variable coefficients)
 	HessianMatrix []Nonzero      // Sparse, upper-triangular matrix of second partial derivatives of quadratic constraints
 	VarTypes      []VariableType // Type of each model variable
 }
@@ -43,7 +43,7 @@ func (m *Model) AddDenseRow(lb float64, coeffs []float64, ub float64) {
 			Col: c,
 			Val: v,
 		}
-		m.CoeffMatrix = append(m.CoeffMatrix, nz)
+		m.ConstMatrix = append(m.ConstMatrix, nz)
 	}
 }
 
@@ -52,7 +52,7 @@ func (m *Model) AddDenseRow(lb float64, coeffs []float64, ub float64) {
 // columns.
 func (m *Model) modelSize() (int, int) {
 	nr, nc := 0, 0
-	for _, nz := range m.CoeffMatrix {
+	for _, nz := range m.ConstMatrix {
 		if nz.Row >= nr {
 			nr = nz.Row + 1
 		}
@@ -101,8 +101,8 @@ func (m *Model) ToRawModel() (*RawModel, error) {
 		return &RawModel{}, err
 	}
 
-	// Convert CoeffMatrix and HessianMatrix to CSR format.
-	aStart, aIndex, aValue, err := nonzerosToCSR(m.CoeffMatrix, false)
+	// Convert ConstMatrix and HessianMatrix to CSR format.
+	aStart, aIndex, aValue, err := nonzerosToCSR(m.ConstMatrix, false)
 	if err != nil {
 		return &RawModel{}, err
 	}

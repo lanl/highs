@@ -24,7 +24,7 @@ func TestMinimalAPIMin(t *testing.T) {
 	model.ColUpper = []float64{4.0, 1.0e30}
 	model.RowLower = []float64{-1.0e30, 5.0, 6.0}
 	model.RowUpper = []float64{7.0, 15.0, 1.0e30}
-	model.CoeffMatrix = []Nonzero{
+	model.ConstMatrix = []Nonzero{
 		{0, 1, 1.0},
 		{1, 0, 1.0},
 		{1, 1, 2.0},
@@ -73,7 +73,7 @@ func TestMinimalAPIMax(t *testing.T) {
 	model.ColUpper = []float64{4.0, 1.0e30}
 	model.RowLower = []float64{-1.0e30, 5.0, 6.0}
 	model.RowUpper = []float64{7.0, 15.0, 1.0e30}
-	model.CoeffMatrix = []Nonzero{
+	model.ConstMatrix = []Nonzero{
 		{0, 1, 1.0},
 		{1, 0, 1.0},
 		{1, 1, 2.0},

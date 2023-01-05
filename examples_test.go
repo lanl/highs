@@ -48,11 +48,11 @@ func ExampleModel_AddDenseRow() {
 	m.AddDenseRow(3.0, []float64{0.0, 0.0, 1.0, -1.0}, 8.0) // 3.0 ≤ C − D ≤ 8.0
 	fmt.Println("RowLower:", m.RowLower)
 	fmt.Println("RowUpper:", m.RowUpper)
-	fmt.Println("CoeffMatrix:", m.CoeffMatrix)
+	fmt.Println("ConstMatrix:", m.ConstMatrix)
 	// Output:
 	// RowLower: [1 2 3]
 	// RowUpper: [2 4 8]
-	// CoeffMatrix: [{0 0 1} {0 1 -1} {1 1 1} {1 2 -1} {2 2 1} {2 3 -1}]
+	// ConstMatrix: [{0 0 1} {0 1 -1} {1 1 1} {1 2 -1} {2 2 1} {2 3 -1}]
 }
 
 // Low-level models default to writing verbose status messages.  SetBoolOption
