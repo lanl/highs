@@ -1,7 +1,6 @@
 // This file tests the high package's high-level API with mixed-integer
 // programming models.
 
-
 package highs
 
 import "testing"

@@ -89,7 +89,7 @@ func (m *Model) modelSize() (int, int) {
 
 // ToRawModel converts a high-level model to a low-level model.
 func (m *Model) ToRawModel() (*RawModel, error) {
-	// Construct an emtpy raw model.  Turn off output, which is out of
+	// Construct an empty raw model.  Turn off output, which is out of
 	// place in a method like ToRawModel.
 	raw := NewRawModel()
 	outFlag, err := raw.GetBoolOption("output_flag") // Presumably "true"
