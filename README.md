@@ -18,29 +18,7 @@ The `highs` package provides a [Go](https://go.dev/) interface to the [HiGHS](ht
 ```
 where "minimizes" can alternatively be "maximizes".  A MIP problem additionally constrains certain elements of $x$ to be integers, and a QP problem additionally includes an $x^T Q x$ term in the objective function to minimize/maximize.
 
-### Example
-
-What is the maximum total face value of three six-sided dice A, B, and C such that the difference in face value between A and B is exactly twice the difference in face value between B and C, where B is strictly greater than C?
-
-We can prepare the solution to this problem using a MIP model:
-
-```math
-\begin{array}{ll}
-  \text{Find vector}    & x
-                          \quad \text{(where~} x \equiv \begin{bmatrix} A \\ B \\ C \end{bmatrix} \text{)} \\
-  \text{that maximizes} & \begin{bmatrix} 1 \\ 1 \\ 1 \end{bmatrix}^T x + 0 \\
-  \text{subject to}     & \begin{bmatrix} 0 \\ 1 \end{bmatrix}
-                          \leq \begin{bmatrix} 1 & -3 & 2 \\ 0 & 1 & -1 \end{bmatrix} x
-                          \leq \begin{bmatrix} 0 \\ \infty \end{bmatrix} \\
-  \text{and}            & \begin{bmatrix} 1 \\ 1 \\ 1 \end{bmatrix}
-                          \leq x
-                          \leq \begin{bmatrix} 6 \\ 6 \\ 6 \end{bmatrix} \\
-  \text{with}           & x_0, x_1, x_2 \in \mathbb{Z}
-\end{array}
-```
-
-The preceding model can be expressed directly in Go + `highs` as [shown in the documentation](https://pkg.go.dev/github.com/lanl/highs#example_Model_Solve).
-
+A [detailed example of formulating a problem with `highs`](https://github.com/lanl/highs/wiki/highs-tutorial) is available on the [`highs` wiki](https://github.com/lanl/highs/wiki).
 
 Installation
 ------------
@@ -58,7 +36,7 @@ go install github.com/lanl/highs
 Documentation
 -------------
 
-Pre-built documentation for the `highs` API is available online at https://pkg.go.dev/github.com/lanl/highs.
+See the [`highs` wiki](https://github.com/lanl/highs/wiki).
 
 Legal statement
 ---------------
