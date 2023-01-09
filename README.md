@@ -6,7 +6,7 @@ highs
 Description
 -----------
 
-The `highs` package provides a [Go](https://go.dev/) interface to the [HiGHS](https://highs.dev/) constraint-programming solver.  HiGHS—and the `highs` package`—support large-scale sparse [linear programming](https://en.wikipedia.org/wiki/Linear_programming) (LP), [mixed-integer programming](https://en.wikipedia.org/wiki/Linear_programming#Integer_unknowns) (MIP), and [quadratic programming](https://en.wikipedia.org/wiki/Quadratic_programming) (QP) models.  The goal of such solvers is to minimize or maximize an expression subject to a set of constraints expressed as inequalities.  The basic form such an LP problem in HiGHS takes is as follows:
+The `highs` package provides a [Go](https://go.dev/) interface to the [HiGHS](https://highs.dev/) constraint-programming solver.  HiGHS—and the `highs` package—support large-scale sparse [linear programming](https://en.wikipedia.org/wiki/Linear_programming) (LP), [mixed-integer programming](https://en.wikipedia.org/wiki/Linear_programming#Integer_unknowns) (MIP), and [quadratic programming](https://en.wikipedia.org/wiki/Quadratic_programming) (QP) models.  The goal of such solvers is to minimize or maximize an expression subject to a set of constraints expressed as inequalities.  The basic form such an LP problem in HiGHS takes is as follows:
 
 ```math
 \begin{array}{ll}
@@ -16,7 +16,7 @@ The `highs` package provides a [Go](https://go.dev/) interface to the [HiGHS](ht
   \text{and}            & d_L \leq x \leq d_L
 \end{array}
 ```
-where "minimizes" can alternatively be "maximizes".  A MIP problem additionally constrains certain elements of $x$ to be integers, and a QP problem additionally includes an $x^T Q x$ term in the objective function to minimize/maximize.
+where "minimizes" can alternatively be "maximizes".  A MIP problem additionally constrains certain elements of $x$ to be integers, and a QP problem additionally includes an $x^T Q x$ term in the objective function.
 
 A [detailed example of formulating a problem with `highs`](https://github.com/lanl/highs/wiki/highs-tutorial) is available on the [`highs` wiki](https://github.com/lanl/highs/wiki).
 
@@ -27,6 +27,7 @@ Installation
 ```bash
 pkg-config highs --cflags --libs
 ```
+(It will typically output something like `-I/usr/include/highs -lhighs`.)
 
 Once HiGHS installation is confirmed, the `highs` package can be installed.  From the directory of an application or package that has opted into the [Go module system](https://blog.golang.org/using-go-modules), run
 ```bash
