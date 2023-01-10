@@ -1,0 +1,14 @@
+name: Flush GitHub's image cache
+
+on:
+  push:
+    branches: 'master'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Purge README images
+      run: curl --no-progress-meter https://github.com/lanl/highs |
+             perl -ne 'while (m,<img src="(https://camo.*?)",g) {print "$1\n"}' |
+             xargs -I {} curl --no-progress-meter -w "\n" -X PURGE {}
