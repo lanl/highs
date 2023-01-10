@@ -1,0 +1,30 @@
+name: Go build and test
+
+on:
+  push:
+    branches: '**'
+  pull_request:
+    branches: '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.x
+
+    - name: Install HiGHS
+      run: |
+        sudo add-apt-repository ppa:pakin/other
+        sudo apt update
+        sudo apt install -y libhighs-dev
+        
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      run: go test -v ./...
