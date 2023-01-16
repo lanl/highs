@@ -417,15 +417,16 @@ func (m *RawModel) Solve() (*RawSolution, error) {
 
 	// Extract the solution as Go data.
 	var soln RawSolution
-	soln.obj = m.obj
-	soln.Status = convertHighsModelStatus(C.Highs_getModelStatus(soln.obj))
-	nc := int(C.Highs_getNumCol(soln.obj))
-	nr := int(C.Highs_getNumRow(soln.obj))
+	soln.rm = m
+	hObj := m.obj
+	soln.Status = convertHighsModelStatus(C.Highs_getModelStatus(hObj))
+	nc := int(C.Highs_getNumCol(hObj))
+	nr := int(C.Highs_getNumRow(hObj))
 	colValue := make([]C.double, nc)
 	colDual := make([]C.double, nc)
 	rowValue := make([]C.double, nr)
 	rowDual := make([]C.double, nr)
-	status = C.Highs_getSolution(soln.obj, &colValue[0], &colDual[0],
+	status = C.Highs_getSolution(hObj, &colValue[0], &colDual[0],
 		&rowValue[0], &rowDual[0])
 	err = newCallStatus(status, "Highs_getSolution", "Solve")
 	if err != nil {
@@ -453,7 +454,7 @@ func (m *RawModel) Solve() (*RawSolution, error) {
 	if err == nil && bValid == int(C.kHighsBasisValidityValid) {
 		colBasisStatus := make([]C.HighsInt, nc)
 		rowBasisStatus := make([]C.HighsInt, nr)
-		status = C.Highs_getBasis(soln.obj, &colBasisStatus[0], &rowBasisStatus[0])
+		status = C.Highs_getBasis(hObj, &colBasisStatus[0], &rowBasisStatus[0])
 		err = newCallStatus(status, "Highs_getBasis", "Solve")
 		if err != nil {
 			return &RawSolution{}, err

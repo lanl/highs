@@ -17,8 +17,8 @@ import "C"
 // A RawSolution encapsulates all the values returned by various HiGHS solvers
 // and provides methods to retrieve additional information.
 type RawSolution struct {
-	obj      unsafe.Pointer // Underlying opaque highs data type
-	Solution                // Values returned by the solver
+	rm       *RawModel // Model that produced the solution
+	Solution           // Values returned by the solver
 }
 
 // GetIntInfo returns the integer value of a named piece of information.
@@ -29,7 +29,7 @@ func (s *RawSolution) GetIntInfo(info string) (int, error) {
 
 	// Get the value.
 	var val C.HighsInt
-	status := C.Highs_getIntInfoValue(s.obj, str, &val)
+	status := C.Highs_getIntInfoValue(s.rm.obj, str, &val)
 	err := newCallStatus(status, "Highs_getIntInfoValue", "GetIntInfo")
 	if err != nil {
 		return 0, err
@@ -46,7 +46,7 @@ func (s *RawSolution) GetInt64Info(info string) (int64, error) {
 
 	// Get the value.
 	var val C.int64_t
-	status := C.Highs_getInt64InfoValue(s.obj, str, &val)
+	status := C.Highs_getInt64InfoValue(s.rm.obj, str, &val)
 	err := newCallStatus(status, "Highs_getInt64InfoValue", "GetInt64Info")
 	if err != nil {
 		return 0, err
@@ -63,7 +63,7 @@ func (s *RawSolution) GetFloat64Info(info string) (float64, error) {
 
 	// Get the value.
 	var val C.double
-	status := C.Highs_getDoubleInfoValue(s.obj, str, &val)
+	status := C.Highs_getDoubleInfoValue(s.rm.obj, str, &val)
 	err := newCallStatus(status, "Highs_getDoubleInfoValue", "GetFloat64Info")
 	if err != nil {
 		return 0.0, err
@@ -81,10 +81,10 @@ func (s *RawSolution) WriteSolutionToFile(fn string, pretty bool) error {
 
 	// Write the solution.
 	if pretty {
-		status := C.Highs_writeSolutionPretty(s.obj, cFName)
+		status := C.Highs_writeSolutionPretty(s.rm.obj, cFName)
 		return newCallStatus(status, "Highs_writeSolutionPretty", "WriteSolutionToFile")
 	}
-	status := C.Highs_writeSolution(s.obj, cFName)
+	status := C.Highs_writeSolution(s.rm.obj, cFName)
 	return newCallStatus(status, "Highs_writeSolution", "WriteSolutionToFile")
 }
 
@@ -110,10 +110,10 @@ func (s *RawSolution) WriteSolution(w io.Writer, pretty bool) error {
 
 	// Write the solution to the throwaway file.
 	if pretty {
-		status := C.Highs_writeSolutionPretty(s.obj, cFName)
+		status := C.Highs_writeSolutionPretty(s.rm.obj, cFName)
 		err = newCallStatus(status, "Highs_writeSolutionPretty", "WriteSolution")
 	} else {
-		status := C.Highs_writeSolution(s.obj, cFName)
+		status := C.Highs_writeSolution(s.rm.obj, cFName)
 		err = newCallStatus(status, "Highs_writeSolution", "WriteSolution")
 	}
 	if err != nil {
