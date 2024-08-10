@@ -32,4 +32,7 @@ formulation is solving for.
 package highs
 
 // #cgo pkg-config: highs
+// #include <interfaces/highs_c_api.h>
 import "C"
+
+//go:generate sh -c "python3 gen-externs.py `pkg-config highs --cflags` > highs-externs.h"

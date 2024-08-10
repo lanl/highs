@@ -15,7 +15,7 @@ import (
 
 // #include <stdlib.h>
 // #include <stdint.h>
-// #include <interfaces/highs_c_api.h>
+// #include "highs-externs.h"
 import "C"
 
 // A RawModel represents a HiGHS low-level model.
