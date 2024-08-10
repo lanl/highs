@@ -16,9 +16,9 @@ low-level API.
 In terms of the names of fields in Model, the highs package solves numerous
 variants of the following core problem:
 
-    Minimize    ColCosts ⋅ ColumnPrimal
-    subject to  RowLower ≤ ConstMatrix ColumnPrimal ≤ RowUpper
-    and         ColLower ≤ ColumnPrimal ≤ ColUpper
+	Minimize    ColCosts ⋅ ColumnPrimal
+	subject to  RowLower ≤ ConstMatrix ColumnPrimal ≤ RowUpper
+	and         ColLower ≤ ColumnPrimal ≤ ColUpper
 
 where all variables in the above are vectors except for ConstMatrix, which is a
 matrix.  "ColCosts ⋅ ColumnPrimal" denotes the inner product of those two
